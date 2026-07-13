@@ -1,0 +1,29 @@
+# Python environment
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Testing & Linting
+.pytest_cache/
+.ruff_cache/
+catboost_info/
+
+# Databases & local storage
+*.db
+*.db-journal
+*.db-wal
+*.sqlite
+
+# Images and presentation artifacts (placed in artifacts/)
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.gif

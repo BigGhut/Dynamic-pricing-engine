@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+.pytest_cache/
+.ruff_cache/
+catboost_info/
+dpe_database.db
+test_dpe_database.db
+artifacts/
+*.png
