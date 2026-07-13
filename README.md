@@ -19,13 +19,19 @@
 
 ### 1. Расчет базового тарифа по графу (Dijkstra OD)
 Вместо евклидова расстояния расчет времени поездки ($\tau$, сек) и расстояния ($dist$, км) производится на основе дорожного графа по алгоритму Дейкстры:
-$$P_{base} = \max(\tau \times \text{RATE\_PER\_SECOND} + dist \times \text{RATE\_PER\_KILOMETER}, \text{MIN\_FARE})$$
+$$P_{base} = \max(\tau \cdot R_{sec} + dist \cdot R_{km}, P_{min})$$
+
+Где:
+- $R_{sec}$ — тариф за секунду поездки (`RATE_PER_SECOND`)
+- $R_{km}$ — тариф за километр поездки (`RATE_PER_KILOMETER`)
+- $P_{min}$ — минимальная стоимость поездки (`MIN_FARE`)
 
 ### 2. Аддитивный Surge (Надбавка)
 Для борьбы с умышленным выбором заказов водителями (*cherry-picking*) реализован переход от мультипликативной модели цен ($Price = P_{base} \times Surge$) к аддитивной:
-$$Price = P_{base} + \Delta_{surge\_bonus}$$
+$$Price = P_{base} + \Delta_{surge}$$
+
 Бонус рассчитывается с использованием функции затухания по времени:
-$$\Delta_{surge\_bonus} = \alpha \cdot \tau + \beta \cdot (1 - e^{-\lambda \cdot \tau})$$
+$$\Delta_{surge} = \alpha \cdot \tau + \beta \cdot (1 - e^{-\lambda \cdot \tau})$$
 Дополнительно применяется **k-Ring сглаживание по графу** для устранения резких ценовых разрывов на границах смежных зон.
 
 ### 3. Switchback A/B-тестирование
