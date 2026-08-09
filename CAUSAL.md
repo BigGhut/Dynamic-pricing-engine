@@ -22,3 +22,12 @@
 - Surge-надбавка `surge_bonus` сбрасывается в `0.0`.
 - Группа теста устанавливается в `CAUSAL_NO_SURGE`.
 - В ответ API возвращается `causal_override = True` и подробное объяснение в `explanation`.
+
+## Training Features Caveats (CATE & Feature Entanglement)
+
+При обучении каузальных моделей на логах симуляции DPE необходимо учитывать особенности структуры признаков:
+
+1. **`surge_bonus` на контроле**: В случае `test_group = MULTIPLICATIVE` надбавка `surge_bonus` тождественно равна `0.0` по построению.
+2. **Post-treatment признака**: Поля `price` и `surge_bonus` частично рассчитываются после назначения арма (post-treatment / arm-linked). Для строгого определения CATE и исключения эндогенности рекомендуется использовать набор признаков **`pre_treatment`** (без `price` и `surge_bonus`).
+3. **Train/Serve alignment vs Causal Purity**: В online-режиме DPE передает полный набор признаков (режим `serve_parity`), сохраняя контракт сервиса. Для offline-оценки и каузального анализа поддерживается параметр `feature_mode="pre_treatment"`.
+
