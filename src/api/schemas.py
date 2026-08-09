@@ -11,6 +11,7 @@ class PingRequest(BaseModel):
 
 class SearchRequest(BaseModel):
     search_id: str = Field(..., description="Уникальный идентификатор сессии поиска")
+    driver_id: Optional[str] = Field(None, description="Идентификатор водителя для подсчета истории")
     lat: float = Field(..., ge=-90.0, le=90.0, description="Широта поиска")
     lon: float = Field(..., ge=-180.0, le=180.0, description="Долгота поиска")
     dest_lat: Optional[float] = Field(None, ge=-90.0, le=90.0, description="Широта назначения")
@@ -31,6 +32,10 @@ class PriceResponse(BaseModel):
     test_group: str = Field("MULTIPLICATIVE", description="Группа Switchback-тестирования (MULTIPLICATIVE / ADDITIVE)")
     surge_bonus: float = Field(0.0, description="Величина аддитивной надбавки")
     payout_formula: str = Field("", description="Математическая формула расчета выплаты")
+    causal_uplift_score: Optional[float] = Field(None, description="Оценка uplift ITE от Causal Engine")
+    causal_override: bool = Field(False, description="Флаг переопределения надбавки Causal Engine")
+    causal_recommended_treatment: Optional[str] = Field(None, description="Рекомендуемый Causal Engine воздействия")
+
 
 class FaultInjectionRequest(BaseModel):
     enabled: bool = Field(..., description="Флаг активации инжекции сбоя")

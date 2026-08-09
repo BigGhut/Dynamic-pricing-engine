@@ -76,6 +76,12 @@ REDIS_PORT: int = int(os.getenv("REDIS_PORT", 6379))
 REDIS_DB: int = 0
 USE_LOCAL_SIMULATED_REDIS: bool = True  # Если True, используем встроенную заглушку вместо Redis
 
+# Настройки интеграции Causal Engine
+CAUSAL_ENGINE_URL: str = os.getenv("CAUSAL_ENGINE_URL", "http://localhost:8100")
+CAUSAL_ENGINE_TIMEOUT_SEC: float = float(os.getenv("CAUSAL_ENGINE_TIMEOUT_SEC", "0.1"))
+CAUSAL_UPLIFT_THRESHOLD: float = float(os.getenv("CAUSAL_UPLIFT_THRESHOLD", "0.05"))
+CAUSAL_ENABLED: bool = os.getenv("CAUSAL_ENABLED", "true").lower() in ("true", "1", "yes")
+
 # Параметры симуляции
 SIM_TOWN_CENTER_LAT: float = 55.7558  # Центр симуляции (Москва)
 SIM_TOWN_CENTER_LON: float = 37.6173

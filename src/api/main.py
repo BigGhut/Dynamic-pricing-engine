@@ -12,23 +12,27 @@ from src.models.demand_model import DemandElasticityModel
 from src.models.geogrid import get_h3_index, smooth_metric_k_ring
 from src.bre.rules import BusinessRulesEngine
 
+from src.features.driver_history import DriverHistoryStore
+
 # Глобальные инстансы сервисов
 feature_store = None
 demand_model = None
 outbox_worker = None
+driver_history_store = DriverHistoryStore()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Контекстный менеджер жизненного цикла FastAPI."""
-    global feature_store, demand_model, outbox_worker
+    global feature_store, demand_model, outbox_worker, driver_history_store
     
     print("[API] Запуск инициализации сервисов...")
     
     # 1. Инициализируем БД
     init_db()
     
-    # 2. Инициализируем Feature Store
+    # 2. Инициализируем Feature Store & Driver History Store
     feature_store = FeatureStore()
+    driver_history_store = DriverHistoryStore(db_path=config.DB_PATH)
     
     # 3. Инициализируем и обучаем/загружаем модель спроса
     demand_model = DemandElasticityModel()
@@ -134,6 +138,10 @@ def request_price(payload: SearchRequest):
     surge_bonus = 0.0
     payout_formula = ""
     
+    causal_uplift_score: Optional[float] = None
+    causal_override: bool = False
+    causal_recommended_treatment: Optional[str] = None
+    
     try:
         # Проверяем инжекцию сбоя в ML-микросервисе
         if config.FAULT_INJECTION_ACTIVE:
@@ -196,6 +204,50 @@ def request_price(payload: SearchRequest):
             smoothed_ds_ratio = sum(r * w for r, w in zip(ds_ratios, weights)) / sum(weights)
             
             proposed_price, surge_bonus, payout_formula = compute_surge_price(smoothed_ds_ratio)
+
+            # Optional Causal Engine Check (Uplift override for Sleeping Dogs)
+            if getattr(config, "CAUSAL_ENABLED", True):
+                try:
+                    import httpx
+                    causal_url = getattr(config, "CAUSAL_ENGINE_URL", "http://localhost:8100")
+                    timeout_sec = getattr(config, "CAUSAL_ENGINE_TIMEOUT_SEC", 0.2)
+                    threshold = getattr(config, "CAUSAL_UPLIFT_THRESHOLD", 0.05)
+
+                    p_trips, a_surge = 0.0, 0.0
+                    if driver_history_store is not None:
+                        p_trips, a_surge = driver_history_store.get_driver_features(
+                            payload.driver_id, h3_cell=h3_cell
+                        )
+
+                    resp = httpx.post(
+                        f"{causal_url}/predict_uplift",
+                        json={
+                            "user_id": payload.driver_id or payload.search_id,
+                            "features": {
+                                "distance_km": float(trip_dist_km),
+                                "duration_sec": float(trip_duration_sec),
+                                "price": float(proposed_price),
+                                "surge_bonus": float(surge_bonus),
+                                "hour_of_day": float(hour),
+                                "past_trips": float(p_trips),
+                                "avg_surge": float(a_surge),
+                            },
+                        },
+                        timeout=timeout_sec,
+                    )
+                    if resp.status_code == 200:
+                        cdata = resp.json()
+                        causal_uplift_score = cdata.get("uplift_score")
+                        causal_recommended_treatment = cdata.get("recommended_treatment")
+                        if causal_uplift_score is not None and float(causal_uplift_score) < -threshold:
+                            causal_override = True
+                            surge_bonus = 0.0
+                            proposed_price = base_fare
+                            test_group = "CAUSAL_NO_SURGE"
+                            payout_formula = f"{round(base_fare, 1)} + 0.0 (Causal Override)"
+                except Exception:
+                    pass  # Fail-open fallback
+
             
             prev_price_record = get_latest_price(h3_cell)
             previous_price = prev_price_record["price"] if prev_price_record else None
@@ -206,6 +258,10 @@ def request_price(payload: SearchRequest):
                 previous_price=previous_price
             )
             explanation = f"Graph-based pricing. {bre_explanation}"
+            if causal_override:
+                threshold_val = getattr(config, "CAUSAL_UPLIFT_THRESHOLD", 0.05)
+                score_str = f"{causal_uplift_score:.4f}" if causal_uplift_score is not None else "N/A"
+                explanation = f"{explanation} Causal override (Sleeping Dog): uplift={score_str} < -{threshold_val}."
             fallback_level = 0
             
         # ==========================================
@@ -291,6 +347,13 @@ def request_price(payload: SearchRequest):
             payout_formula=payout_formula
         )
         
+        if driver_history_store is not None:
+            driver_history_store.record_trip(
+                driver_id=payload.driver_id,
+                surge_bonus=surge_bonus,
+                h3_cell=h3_cell,
+            )
+
         return PriceResponse(
             h3_index=h3_cell,
             price=final_price,
@@ -301,7 +364,10 @@ def request_price(payload: SearchRequest):
             node_id=node_id,
             test_group=test_group,
             surge_bonus=surge_bonus,
-            payout_formula=payout_formula
+            payout_formula=payout_formula,
+            causal_uplift_score=causal_uplift_score,
+            causal_override=causal_override,
+            causal_recommended_treatment=causal_recommended_treatment,
         )
         
     except Exception as e:
@@ -336,8 +402,12 @@ def request_price(payload: SearchRequest):
             node_id=node_id,
             test_group=test_group,
             surge_bonus=0.0,
-            payout_formula=f"{round(base_fare, 1)} (Fail-Static)"
+            payout_formula=f"{round(base_fare, 1)} (Fail-Static)",
+            causal_uplift_score=causal_uplift_score,
+            causal_override=causal_override,
+            causal_recommended_treatment=causal_recommended_treatment,
         )
+
 
 @app.get("/api/v1/explain/{h3_index}", status_code=status.HTTP_200_OK)
 def get_price_history_and_explanation(h3_index: str, limit: int = 10):
