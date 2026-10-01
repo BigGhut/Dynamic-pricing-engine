@@ -35,6 +35,8 @@ class PriceResponse(BaseModel):
     causal_uplift_score: Optional[float] = Field(None, description="Оценка uplift ITE от Causal Engine")
     causal_override: bool = Field(False, description="Флаг переопределения надбавки Causal Engine")
     causal_recommended_treatment: Optional[str] = Field(None, description="Рекомендуемый Causal Engine воздействия")
+    distance_km: Optional[float] = Field(None, description="Длина поездки, по которой посчитан тариф")
+    duration_sec: Optional[float] = Field(None, description="Время поездки, по которому посчитан тариф")
 
 
 class FaultInjectionRequest(BaseModel):

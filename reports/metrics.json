@@ -1,0 +1,38 @@
+{
+  "seed": 42,
+  "n_ticks": 96,
+  "num_drivers": 80,
+  "n_trips": 1443,
+  "tick_virtual_hours": 0.25,
+  "tick_clock_seconds": 4.0,
+  "started_virtual_hour": 7.66,
+  "graph_nodes": 70,
+  "causal_enabled": false,
+  "short_trip_km": 5.0,
+  "acceptance_model": "Planted logit of driver profit per hour. Short multiplicative trips with surge above 1.1x get an extra penalty. This is not a city A/B.",
+  "od_pattern": "Morning suburb to center, evening center to suburb, otherwise uniform.",
+  "arms": {
+    "ADDITIVE": {
+      "n": 735,
+      "n_short": 92,
+      "n_long": 538,
+      "accept_rate": 0.2707482993197279,
+      "accept_short": 0.7391304347826086,
+      "accept_long": 0.16356877323420074,
+      "mean_price": 412.2181224489795,
+      "mean_driver_income": 652.7473,
+      "cv_driver_income": 0.7026779903293846
+    },
+    "MULTIPLICATIVE": {
+      "n": 708,
+      "n_short": 99,
+      "n_long": 529,
+      "accept_rate": 0.2387005649717514,
+      "accept_short": 0.3333333333333333,
+      "accept_long": 0.20415879017013233,
+      "mean_price": 421.3804943502825,
+      "mean_driver_income": 582.0993000000001,
+      "cv_driver_income": 0.850915392660795
+    }
+  }
+}

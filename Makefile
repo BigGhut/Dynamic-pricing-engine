@@ -8,6 +8,9 @@ install:
 test:
 	$(POETRY) run pytest tests/
 
+evaluate:
+	python -m src.eval.switchback
+
 lint:
 	$(POETRY) run ruff check src/ app/ tests/
 

@@ -1,5 +1,7 @@
+import os
 import time
 import sqlite3
+from urllib.parse import urlparse
 import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
@@ -7,6 +9,12 @@ import requests
 import altair as alt
 from src import config
 import json
+
+API_URL = os.getenv("API_URL", "http://127.0.0.1:8000").rstrip("/")
+PUBLIC_API_URL = os.getenv("PUBLIC_API_URL", "http://127.0.0.1:8000").rstrip("/")
+_api_host = (urlparse(API_URL).hostname or "").lower()
+_local_api = _api_host in {"127.0.0.1", "localhost"}
+_autostart = os.getenv("DPE_AUTOSTART", "true").lower() in {"1", "true", "yes"}
 
 # Настройка страницы
 st.set_page_config(
@@ -18,13 +26,13 @@ st.set_page_config(
 # Автозапуск API-сервера и симулятора в монолитном фоновом режиме (для оффлайн и Streamlit Cloud)
 api_running = False
 try:
-    resp = requests.get("http://127.0.0.1:8000/health", timeout=0.15)
+    resp = requests.get(f"{API_URL}/health", timeout=0.15)
     if resp.status_code == 200:
         api_running = True
 except Exception:
     pass
 
-if not api_running:
+if _autostart and _local_api and not api_running:
     import threading
     import uvicorn
     from src.api.main import app as fastapi_app
@@ -58,7 +66,7 @@ if not api_running:
 
 # Функция подключения к SQLite для логов ценообразования
 def get_data_from_db():
-    conn = sqlite3.connect(config.DB_PATH)
+    conn = sqlite3.connect(config.DB_PATH, timeout=5)
     df_prices = pd.read_sql_query(
         "SELECT * FROM prices ORDER BY created_at DESC LIMIT 200", 
         conn
@@ -72,7 +80,7 @@ def get_data_from_db():
 
 # Функция загрузки аналитики принятия заказов
 def get_analytics_data():
-    conn = sqlite3.connect(config.DB_PATH)
+    conn = sqlite3.connect(config.DB_PATH, timeout=5)
     try:
         df = pd.read_sql_query("SELECT * FROM simulation_analytics", conn)
     except Exception:
@@ -100,7 +108,7 @@ except Exception as e:
 # Пытаемся получить состояние графа с API сервера
 graph_state = None
 try:
-    resp = requests.get("http://localhost:8000/api/v1/graph/state", timeout=1.0)
+    resp = requests.get(f"{API_URL}/api/v1/graph/state", timeout=1.0)
     if resp.status_code == 200:
         graph_state = resp.json()
 except Exception:
@@ -386,7 +394,7 @@ if not df_prices.empty:
                 }}
 
                 function updateData() {{
-                    fetch('http://127.0.0.1:8000/api/v1/graph/state')
+                    fetch('{PUBLIC_API_URL}/api/v1/graph/state')
                         .then(function(response) {{
                             return response.json();
                         }})

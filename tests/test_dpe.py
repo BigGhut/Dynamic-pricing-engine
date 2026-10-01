@@ -251,28 +251,22 @@ def test_edge_weight_fallback():
     assert speeds_telemetry[("center", "bulvar_0")] == 15.0
 
 def test_additive_surge_math():
-    """Тест математики аддитивной надбавки (Additive Surge)."""
+    """Аддитивная надбавка на 10 минут при ds=2 около 94 руб."""
     import math
-    
-    # Задаем параметры поездки
-    duration_sec = 600.0  # 10 минут
-    ds_ratio = 2.0        # Превышение спроса в 2 раза
-    
-    # Математика из ТЗ и конфига:
-    # m_i = ALPHA_SURGE_RATE * (ds_ratio - 1) = 0.10 * 1.0 = 0.10 руб/сек
-    # z_i = BETA_SURGE_VAL * (ds_ratio - 1) = 100.0 * 1.0 = 100.0 руб
-    # q = 1 - e^(-LAMBDA_DECAY * duration) = 1 - e^(-0.0007 * 600) = 1 - e^-0.42 ~ 0.3429
-    # surge_bonus = m_i * duration + z_i * q = 0.10 * 600 + 100.0 * 0.34298 = 60.0 + 34.298 = 94.298 руб
-    
-    m_i = config.ALPHA_SURGE_RATE * max(0.0, ds_ratio - 1.0)
-    z_i = config.BETA_SURGE_VAL * max(0.0, ds_ratio - 1.0)
-    q = 1.0 - math.exp(-config.LAMBDA_DECAY * duration_sec)
-    surge_bonus = m_i * duration_sec + z_i * q
-    
-    assert abs(m_i - 0.10) < 0.01
-    assert abs(z_i - 100.0) < 0.01
-    assert abs(q - (1 - math.exp(-0.42))) < 0.01
-    assert abs(surge_bonus - 94.29) < 0.1
+    from src.pricing import quote_fare
+
+    duration_sec = 600.0
+    quoted = quote_fare(duration_sec, 10.0, 2.0, "ADDITIVE")
+    decay = 1.0 - math.exp(-config.LAMBDA_DECAY * duration_sec)
+    expected_bonus = config.ALPHA_SURGE_RATE * duration_sec + config.BETA_SURGE_VAL * decay
+
+    assert abs(expected_bonus - 94.29) < 0.1
+    assert abs(quoted.surge_bonus - expected_bonus) < 1e-9
+    assert quoted.price == quoted.base_fare + quoted.surge_bonus
+
+    multiplicative = quote_fare(duration_sec, 10.0, 2.0, "MULTIPLICATIVE")
+    assert multiplicative.surge_bonus == 0.0
+    assert multiplicative.price == multiplicative.base_fare * 1.5
 
 def test_switchback_toggle():
     """Тест переключения групп Switchback-тестирования в зависимости от времени."""

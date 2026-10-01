@@ -1,11 +1,12 @@
 import sqlite3
-import time
-from typing import Tuple, Dict, Any, Optional
-from src import config
+from typing import Any, Dict, Optional
+
+from src import clock, config
+
 
 def get_db_connection() -> sqlite3.Connection:
     """Возвращает соединение с базой данных SQLite."""
-    conn = sqlite3.connect(config.DB_PATH)
+    conn = sqlite3.connect(config.DB_PATH, timeout=5)
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -97,7 +98,7 @@ def save_price_with_outbox(
     Транзакционно сохраняет цену в таблицу prices и записывает
     событие изменения цены в таблицу price_outbox.
     """
-    created_at = time.time()
+    created_at = clock.now()
     conn = get_db_connection()
     try:
         cursor = conn.cursor()

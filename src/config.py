@@ -2,7 +2,7 @@ import os
 
 # Базовые настройки путей
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DB_PATH = os.path.join(BASE_DIR, "dpe_database.db")
+DB_PATH = os.getenv("DB_PATH", os.path.join(BASE_DIR, "dpe_database.db"))
 
 # Настройки гео-распределения H3
 H3_RESOLUTION: int = 7  # Размер ячейки ~1.2 км
@@ -74,11 +74,16 @@ CONGESTION_PROFILES = {
 REDIS_HOST: str = os.getenv("REDIS_HOST", "localhost")
 REDIS_PORT: int = int(os.getenv("REDIS_PORT", 6379))
 REDIS_DB: int = 0
-USE_LOCAL_SIMULATED_REDIS: bool = True  # Если True, используем встроенную заглушку вместо Redis
+# Локально и в тестах Redis не нужен. Docker Compose ставит false и REDIS_URL.
+USE_LOCAL_SIMULATED_REDIS: bool = os.getenv("USE_LOCAL_SIMULATED_REDIS", "true").lower() in (
+    "1",
+    "true",
+    "yes",
+)
 
 # Настройки интеграции Causal Engine
 CAUSAL_ENGINE_URL: str = os.getenv("CAUSAL_ENGINE_URL", "http://localhost:8100")
-CAUSAL_ENGINE_TIMEOUT_SEC: float = float(os.getenv("CAUSAL_ENGINE_TIMEOUT_SEC", "0.1"))
+CAUSAL_ENGINE_TIMEOUT_SEC: float = float(os.getenv("CAUSAL_ENGINE_TIMEOUT_SEC", "0.2"))
 CAUSAL_UPLIFT_THRESHOLD: float = float(os.getenv("CAUSAL_UPLIFT_THRESHOLD", "0.05"))
 CAUSAL_ENABLED: bool = os.getenv("CAUSAL_ENABLED", "true").lower() in ("true", "1", "yes")
 

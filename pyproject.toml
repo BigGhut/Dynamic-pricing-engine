@@ -2,7 +2,7 @@
 name = "dynamic-pricing-engine"
 version = "1.0.0"
 description = "Dynamic Pricing Engine (DPE) with Additive Surge and Switchback A/B testing"
-authors = ["Antigravity Developer"]
+authors = ["BigGhut"]
 readme = "README.md"
 packages = [{include = "src"}]
 
@@ -13,9 +13,11 @@ uvicorn = "^0.22.0"
 streamlit = "^1.25.0"
 pandas = "^2.0.0"
 catboost = "^1.2"
-h3 = "^3.7.6"
+h3 = ">=4.1.0,<5"
 redis = "^4.6.0"
 requests = "^2.31.0"
+httpx = "^0.24.0"
+numpy = "^1.24.0"
 altair = "^5.0.0"
 
 [tool.poetry.group.dev.dependencies]

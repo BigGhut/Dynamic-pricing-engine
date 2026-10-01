@@ -1,8 +1,11 @@
 import os
-import pandas as pd
+
 import numpy as np
+import pandas as pd
 from catboost import CatBoostRegressor
+
 from src import config
+
 
 class DemandElasticityModel:
     def __init__(self):
@@ -46,25 +49,30 @@ class DemandElasticityModel:
         })
         return df
 
-    def train(self):
-        """Обучает модель CatBoost на исторических данных."""
-        print("[Demand Model] Генерация исторических данных для обучения...")
-        df = self.generate_synthetic_data()
-        
-        X = df[["price", "demand_supply_ratio", "competitor_price", "hour"]]
+    def fit_dataframe(self, df: pd.DataFrame, iterations: int = 100) -> None:
+        """Fit on a frame. Does not write the model file."""
+        x = df[["price", "demand_supply_ratio", "competitor_price", "hour"]]
         y = df["conversion"]
-        
-        print("[Demand Model] Обучение CatBoostRegressor на CPU...")
         self.model = CatBoostRegressor(
-            iterations=100,
+            iterations=iterations,
             learning_rate=0.1,
             depth=5,
             verbose=0,
-            loss_function="RMSE"
+            loss_function="RMSE",
         )
-        self.model.fit(X, y)
-        self.model.save_model(self.model_path)
+        self.model.fit(x, y)
         self.is_trained = True
+
+    def train(self):
+        """Обучает модель CatBoost на синтетической конверсии и сохраняет файл.
+
+        Этот sandbox не участвует в котировке. Цена считается формулой в src/pricing.py.
+        """
+        print("[Demand Model] Генерация исторических данных для обучения...")
+        df = self.generate_synthetic_data()
+        print("[Demand Model] Обучение CatBoostRegressor на CPU...")
+        self.fit_dataframe(df)
+        self.model.save_model(self.model_path)
         print(f"[Demand Model] Модель успешно обучена и сохранена по адресу: {self.model_path}")
 
     def load_or_train(self):

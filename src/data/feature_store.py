@@ -1,9 +1,14 @@
+import os
 import time
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict, List, Optional
+
 import redis
-from src import config
-from src.models.geogrid import get_h3_index, get_k_ring
+
+from src import clock, config
+from src.models.geogrid import get_k_ring
 from src.models.road_graph import RoadGraph
+from src.models.speeds import congestion_factor
+
 
 # Заглушка для имитации Redis в памяти на случай отсутствия подключения к настоящему Redis
 class SimulatedRedis:
@@ -11,9 +16,14 @@ class SimulatedRedis:
         self.store = {}  # key -> val
         self.ttls = {}   # key -> expire_timestamp
         self.sets = {}   # key -> dict(member -> timestamp)
+        self._cleaned_at = None
 
     def _clean_expired(self):
-        now = time.time()
+        now = clock.now()
+        # Reads in one quote share a timestamp. Expiry only changes when the clock does.
+        if self._cleaned_at == now:
+            return
+        self._cleaned_at = now
         # Чистим обычные ключи
         expired_keys = [k for k, exp in self.ttls.items() if now > exp]
         for k in expired_keys:
@@ -73,12 +83,12 @@ class SimulatedRedis:
         self._clean_expired()
         self.store[name] = value
         if ex:
-            self.ttls[name] = time.time() + ex
+            self.ttls[name] = clock.now() + ex
 
     def get(self, name: str) -> Optional[Any]:
         self._clean_expired()
         if name in self.store:
-            if name in self.ttls and time.time() > self.ttls[name]:
+            if name in self.ttls and clock.now() > self.ttls[name]:
                 self.store.pop(name, None)
                 self.ttls.pop(name, None)
                 return None
@@ -92,18 +102,32 @@ class FeatureStore:
         self.graph = RoadGraph()
         
         if not config.USE_LOCAL_SIMULATED_REDIS:
-            try:
-                self.redis_client = redis.Redis(
-                    host=config.REDIS_HOST,
-                    port=config.REDIS_PORT,
-                    db=config.REDIS_DB,
-                    decode_responses=True,
-                    socket_connect_timeout=1
-                )
-                self.redis_client.ping()
-                print("[Feature Store] Успешное подключение к Redis.")
-            except Exception:
-                print("[Feature Store] Подключение к Redis не удалось. Включена симуляция в памяти.")
+            self.redis_client = None
+            last_error = None
+            for _attempt in range(10):
+                try:
+                    redis_url = os.getenv("REDIS_URL", "").strip()
+                    if redis_url:
+                        client = redis.Redis.from_url(
+                            redis_url, decode_responses=True, socket_connect_timeout=1
+                        )
+                    else:
+                        client = redis.Redis(
+                            host=config.REDIS_HOST,
+                            port=config.REDIS_PORT,
+                            db=config.REDIS_DB,
+                            decode_responses=True,
+                            socket_connect_timeout=1,
+                        )
+                    client.ping()
+                    self.redis_client = client
+                    print("[Feature Store] Успешное подключение к Redis.")
+                    break
+                except Exception as error:
+                    last_error = error
+                    time.sleep(0.5)
+            if self.redis_client is None:
+                print(f"[Feature Store] Подключение к Redis не удалось ({last_error}). Включена симуляция в памяти.")
                 self.redis_client = SimulatedRedis()
                 self.simulated = True
         else:
@@ -125,7 +149,7 @@ class FeatureStore:
         Регистрирует координаты водителя на ребре графа (u, v) с прогрессом progress.
         Поддерживает двойную индексацию (запись в бакеты node и h3).
         """
-        now = time.time()
+        now = clock.now()
         ts_bucket = int(now // 60) * 60
         
         # 1. Запись в графовый бакет узла притяжения (узла назначения v)
@@ -145,7 +169,7 @@ class FeatureStore:
         Снейпит координаты на граф и делает двойную запись (node + h3).
         """
         node_id = self.graph.snap_to_node(lat, lon)
-        now = time.time()
+        now = clock.now()
         ts_bucket = int(now // 60) * 60
         
         # 1. Запись в графовый бакет
@@ -187,38 +211,17 @@ class FeatureStore:
         
         # Считываем виртуальный час из Redis (или используем текущее системное время)
         vh_raw = self.redis_client.get("sim:virtual_hour")
-        hour = int(float(vh_raw)) if vh_raw else time.localtime().tm_hour
-        
+        hour = int(float(vh_raw)) if vh_raw else time.localtime(clock.now()).tm_hour
+
         for u, neighbors in self.graph.adj.items():
             for v, edge_data in neighbors.items():
                 key = f"edge:{u}:{v}:speed"
                 speed_raw = self.redis_client.get(key)
-                
-                # Уровень 1: Живая телеметрия
                 if speed_raw is not None:
                     speed = float(speed_raw)
                 else:
-                    # Уровень 2: Исторический профиль заторов
-                    road_type = edge_data["road_type"]
-                    base_speed = edge_data["base_speed_kmh"]
-                    factor = 1.0
-                    
-                    if road_type in config.CONGESTION_PROFILES:
-                        profiles = config.CONGESTION_PROFILES[road_type]
-                        for (h_start, h_end), f in profiles.items():
-                            if h_start <= h_end:
-                                if h_start <= hour < h_end:
-                                    factor = f
-                                    break
-                            else:  # Переход через полночь
-                                if hour >= h_start or hour < h_end:
-                                    factor = f
-                                    break
-                                    
-                    # Уровень 3: Free-flow скорость (базовая)
-                    speed = base_speed * factor
-                    
-                edge_speeds[(u, v)] = max(speed, 5.0)  # Ограничиваем снизу 5 км/ч, чтобы избежать деления на ноль
+                    speed = edge_data["base_speed_kmh"] * congestion_factor(edge_data["road_type"], hour)
+                edge_speeds[(u, v)] = max(speed, 5.0)
                 
         return edge_speeds
 
@@ -227,7 +230,7 @@ class FeatureStore:
         Метод обратной совместимости по H3.
         Реализует старый плоский H3 расчет для каскадного Fail-Static.
         """
-        now = time.time()
+        now = clock.now()
         ts_bucket = int(now // 60) * 60
 
         active_drivers = set()
@@ -278,7 +281,7 @@ class FeatureStore:
         Вычисляет фичи предложения (с учётом точного ETA водителей в изохроне 7 минут)
         и спроса (за 5 минут на узле).
         """
-        now = time.time()
+        now = clock.now()
         ts_bucket = int(now // 60) * 60
         
         # 1. Запуск Reverse Dijkstra для определения изохроны

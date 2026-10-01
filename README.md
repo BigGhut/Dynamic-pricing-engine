@@ -1,54 +1,75 @@
-# Dynamic Pricing Engine (DPE) — MVP 4.0
+# Dynamic Pricing Engine
 
-**Ценообразование на дорожном графе Москвы:** Dijkstra OD, **аддитивный surge**, switchback A/B и опциональный **fail-open** uplift через [Causal Pricing Engine (CPE)](https://github.com/BigGhut/Causal-pricing-engine).
+Цена поездки по синтетическому графу Москвы: кратчайший путь и надбавка за спрос. Switchback сравнивает аддитивную надбавку с мультипликативным surge. [Causal Pricing Engine](https://github.com/BigGhut/Causal-pricing-engine) можно подключить сбоку: если он не ответил за 200 мс, цена всё равно считается.
 
-Python ≥ 3.10 · FastAPI · Streamlit · CatBoost · H3 · Redis · Poetry / Docker  
-DPE `:8000` · CPE `:8100` · UI `:8501`
+Это симуляция. Граф не OSM, водители не настоящие, городского A/B здесь нет.
 
-| | DPE (этот репо) | CPE |
-|:---|:---|:---|
-| Роль | цена, граф, surge, A/B | ITE / Sleeping Dog hint |
-| Связь | клиент ≤200 ms, fail-open | `POST /predict_uplift` |
-| Док | [CAUSAL.md](CAUSAL.md) | [README CPE](https://github.com/BigGhut/Causal-pricing-engine) |
+## Как считается цена
 
-**Честно:** симуляция / портфолио-MVP, не city-scale prod. A/B-цифры — из симуляционного прогона. Без CPE цена всё равно считается (fail-open).
+Запрос снэпится к ближайшему узлу. Dijkstra до назначения даёт секунды и километры с учётом скорости на рёбрах. База поездки:
 
-```text
-search → DPE :8000 --uplift--> CPE :8100
-              τ̂ < -θ → surge=0, CAUSAL_NO_SURGE (+ causal_* в ответе)
-```
+`max(секунды × 0.15 + километры × 12, 150)`
 
-## Что внутри
+Спрос к предложению считается по поискам за 5 минут и водителям, которые доезжают до точки за 7 минут. Соседние узлы входят в сглаживание с весом 0.2.
 
-- База по графу (Дейкстра) + additive \(\Delta_{surge}\) (вместо \(P\cdot S\)), k-Ring сглаживание  
-- Switchback: **MULTIPLICATIVE** vs **ADDITIVE**  
-- Симулятор, feature store, outbox, Streamlit  
-- Causal override — детали env и parity в [CAUSAL.md](CAUSAL.md)
+Виртуальный час переключает руку раз в час:
 
-### Switchback (симуляция, не prod)
+- чётный час — мультипликативная цена, надбавка 0: `база × (1 + 0.5 × max(спрос − 1, 0))`
+- нечётный час — аддитивная надбавка сверху базы. В ней ставка за секунду и фиксированная часть, которая насыщается как `1 − exp(−0.0007 × секунды)`
 
-| Метрика | MULT | ADD |
-|:---|:---:|:---:|
-| Accept short (&lt;5 km) | 0% | 85% |
-| CV доходов | 1.08 | 1.02 |
-| Conversion | 50% | 51.4% |
+Дальше пол 120 ₽, потолок 1500 ₽ и шаг не больше 15% от предыдущей цены в той же H3-ячейке.
+
+Если CPE включён и вернул uplift ниже −0.05, надбавка снимается, группа становится `CAUSAL_NO_SURGE`. Ошибка или таймаут CPE цену не роняют. Поля `causal_*` описаны в [CAUSAL.md](CAUSAL.md).
+
+CatBoost в репозитории учится на синтетической конверсии и в эту формулу не входит.
+
+Граф — 70 узлов: Кремль, бульварное и Садовое кольца, ТТК, радиальные хабы и МКАД. Два радиальных ребра разорваны как река. Скорость берётся из телеметрии, иначе из часового профиля заторов.
+
+## Симуляция switchback
+
+Водитель в симуляторе принимает заказ логистической функцией от руб/час после комиссии 20% и 6 ₽/км. На короткой мультипликативной поездке со surge выше 1.1× к полезности применяется дополнительный штраф: это заложенное в модель cherry-picking, не наблюдение за водителями.
+
+Утро: спрос на окраине, назначение в центре. Вечер наоборот. Иначе origin и destination равномерны по графу.
+
+Таблица округлена из [reports/metrics.json](reports/metrics.json). Прогон `python -m src.eval.switchback`, seed 42, 80 водителей, 96 тиков по 15 виртуальных минут с 07:40, 1443 поездки. CPE в этом прогоне выключен. Повторный запуск перезаписывает файл.
+
+| | Multiplicative | Additive |
+|---|---:|---:|
+| Поездок | 708 | 735 |
+| Принято | 23.9% | 27.1% |
+| Принято, короче 5 км | 33.3% из 99 | 73.9% из 92 |
+| Принято, 10 км и длиннее | 20.4% из 529 | 16.4% из 538 |
+| Средняя цена, ₽ | 421.4 | 412.2 |
+| Средний доход водителя, ₽ | 582.1 | 652.7 |
+| CV дохода водителей | 0.851 | 0.703 |
+
+На коротких поездках аддитивная рука принимается чаще. На длинных чуть чаще принимается мультипликативная. CV ниже у аддитивной руки: доход водителей в этом прогоне ровнее.
 
 ## Запуск
 
+Python 3.10+. Датасет не нужен.
+
 ```bash
-poetry install && make test
-make run-local          # API :8000 + Streamlit
-# или: make docker-up   → :8000 и :8501
-# pip: pip install -r requirements.txt && uvicorn src.api.main:app --port 8000
+pip install -r requirements.txt
+python -m pytest tests -q
+python -m src.eval.switchback
+python -m uvicorn src.api.main:app --host 127.0.0.1 --port 8000
+streamlit run app/dashboard.py
 ```
 
-**С CPE:** в одном терминале поднять [CPE](https://github.com/BigGhut/Causal-pricing-engine) на `:8100`, DPE на `:8000` (`CAUSAL_ENGINE_URL=http://localhost:8100`).  
-Проверка: `curl localhost:8100/health` · в ответе DPE поля `causal_*`.
+`streamlit run` сам поднимает API и симулятор, если на `127.0.0.1:8000` никто не отвечает. Ручки: `GET /health`, `POST /api/v1/search`, `POST /api/v1/ping`, `GET /api/v1/graph/state`.
 
-## Структура
+Локально feature store живёт в памяти. Redis не обязателен.
 
-`src/api` · `src/models` (граф) · `src/features` (DriverHistoryStore) · `src/data` · `app/` (Streamlit) · `tests/` · `CAUSAL.md`
+```bash
+docker compose up --build
+```
 
-## Ссылки
+Compose поднимает Redis, API на `:8000`, симулятор и Streamlit на `:8501`. У API, симулятора и дашборда один файл SQLite. В контейнере CPE выключен. Чтобы включить его локально: CPE на `:8100` и `CAUSAL_ENABLED=true`.
 
-[CAUSAL.md](CAUSAL.md) · [CPE](https://github.com/BigGhut/Causal-pricing-engine) · [CASE_STUDY](https://github.com/BigGhut/Causal-pricing-engine/blob/master/CASE_STUDY.md) · [evidence](https://github.com/BigGhut/Causal-pricing-engine/blob/master/docs/evidence/latest_proof.md)
+## Стек
+
+- FastAPI, Pydantic, Uvicorn
+- Streamlit, Altair
+- H3 4.x, Redis, SQLite
+- CatBoost только в sandbox спроса `src/models/demand_model.py`
