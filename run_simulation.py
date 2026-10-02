@@ -1,3 +1,4 @@
+import argparse
 import os
 import random
 import sqlite3
@@ -56,11 +57,19 @@ def save_simulation_analytic(
 
 
 class SimulationRunner:
-    def __init__(self, num_drivers: int = 80, num_users: int = 150, engine=None, verbose: bool = True):
+    def __init__(
+        self,
+        num_drivers: int = 80,
+        num_users: int = 150,
+        engine=None,
+        verbose: bool = True,
+        apply_cherry_penalty: bool = True,
+    ):
         self.num_drivers = num_drivers
         self.num_users = num_users
         self.engine = engine or HttpEngine(API_URL)
         self.verbose = verbose
+        self.apply_cherry_penalty = apply_cherry_penalty
         self.records: list[dict] = []
         self.graph = RoadGraph()
 
@@ -266,23 +275,44 @@ class SimulationRunner:
                     trip_time_sec = d_time
                     trip_dist_km = d_dist
 
-            probability = accept_probability(
+            accept_u = random.random()
+            probability_with_penalty = accept_probability(
                 price=price,
                 distance_km=trip_dist_km,
                 duration_sec=trip_time_sec,
                 arm=test_group,
                 surge_multiplier=surge_multiplier,
+                apply_cherry_penalty=True,
             )
-            accepted = 1 if random.random() < probability else 0
+            probability_no_penalty = accept_probability(
+                price=price,
+                distance_km=trip_dist_km,
+                duration_sec=trip_time_sec,
+                arm=test_group,
+                surge_multiplier=surge_multiplier,
+                apply_cherry_penalty=False,
+            )
+            accepted_with_penalty = 1 if accept_u < probability_with_penalty else 0
+            accepted_no_penalty = 1 if accept_u < probability_no_penalty else 0
+            if self.apply_cherry_penalty:
+                accepted = accepted_with_penalty
+                probability = probability_with_penalty
+            else:
+                accepted = accepted_no_penalty
+                probability = probability_no_penalty
             driver_id = random.choice(self.drivers)["id"]
             self.records.append({
                 "test_group": test_group,
+                "hour": int(self.virtual_hour),
                 "trip_id": search_id,
                 "distance_km": trip_dist_km,
                 "duration_sec": trip_time_sec,
                 "price": price,
                 "surge_bonus": surge_bonus,
+                "surge_multiplier": surge_multiplier,
                 "accepted": accepted,
+                "accepted_with_cherry_penalty": accepted_with_penalty,
+                "accepted_no_cherry_penalty": accepted_no_penalty,
                 "driver_utility": probability,
                 "driver_id": driver_id,
             })
@@ -308,7 +338,16 @@ class SimulationRunner:
 
 
 def main():
+    parser = argparse.ArgumentParser(description="Симулятор трафика DPE")
+    parser.add_argument(
+        "--no-cherry-penalty",
+        action="store_true",
+        help="Не снижать полезность коротких мультипликативных поездок со surge выше 1.1x",
+    )
+    args = parser.parse_args()
     print("=== DPE Симулятор трафика: additive surge против multiplicative ===")
+    if args.no_cherry_penalty:
+        print("[Simulator] Штраф cherry-picking выключен.")
     print(f"Подключение к DPE серверу: {API_URL}")
     try:
         requests.get(f"{API_URL}/health", timeout=1.5)
@@ -316,7 +355,7 @@ def main():
     except Exception:
         print("[Simulator] [WARN] DPE сервер не доступен.")
 
-    simulator = SimulationRunner()
+    simulator = SimulationRunner(apply_cherry_penalty=not args.no_cherry_penalty)
     try:
         while True:
             if not simulator.run_tick():

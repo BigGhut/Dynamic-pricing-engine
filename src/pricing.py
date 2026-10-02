@@ -64,13 +64,23 @@ def accept_probability(
     duration_sec: float,
     arm: str,
     surge_multiplier: float,
+    apply_cherry_penalty: bool = True,
 ) -> float:
-    """Probability that the planted driver model accepts the trip."""
+    """Probability that the planted driver model accepts the trip.
+
+    The cherry-pick penalty is an assumption. Pass apply_cherry_penalty=False
+    to score the same trip without it.
+    """
     revenue = price * (1.0 - COMMISSION)
     cost = distance_km * COST_PER_KM
     hours = (duration_sec + PICKUP_SEC) / 3600.0
     utility = (revenue - cost) / max(hours, 0.05)
-    if arm == "MULTIPLICATIVE" and distance_km < SHORT_TRIP_KM and surge_multiplier > CHERRY_SURGE:
+    if (
+        apply_cherry_penalty
+        and arm == "MULTIPLICATIVE"
+        and distance_km < SHORT_TRIP_KM
+        and surge_multiplier > CHERRY_SURGE
+    ):
         penalty = max(0.15, 1.0 - 0.85 * (surge_multiplier - 1.0))
         utility *= penalty
     return 1.0 / (1.0 + math.exp(-LOGIT_K * (utility - UTILITY_THRESHOLD)))

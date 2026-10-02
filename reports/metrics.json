@@ -9,30 +9,879 @@
   "graph_nodes": 70,
   "causal_enabled": false,
   "short_trip_km": 5.0,
-  "acceptance_model": "Planted logit of driver profit per hour. Short multiplicative trips with surge above 1.1x get an extra penalty. This is not a city A/B.",
+  "acceptance_model": "Planted logit of driver profit per hour. Short multiplicative trips with surge above 1.1x get an extra penalty unless the no-penalty column is used. Both columns share one uniform draw. This is not a city A/B.",
   "od_pattern": "Morning suburb to center, evening center to suburb, otherwise uniform.",
-  "arms": {
-    "ADDITIVE": {
-      "n": 735,
-      "n_short": 92,
-      "n_long": 538,
-      "accept_rate": 0.2707482993197279,
-      "accept_short": 0.7391304347826086,
-      "accept_long": 0.16356877323420074,
-      "mean_price": 412.2181224489795,
-      "mean_driver_income": 652.7473,
-      "cv_driver_income": 0.7026779903293846
+  "policies": {
+    "with_cherry_penalty": {
+      "arms": {
+        "ADDITIVE": {
+          "n": 735,
+          "n_short": 92,
+          "n_long": 538,
+          "accept_rate": 0.2707482993197279,
+          "accept_short": 0.7391304347826086,
+          "accept_long": 0.16356877323420074,
+          "mean_price": 412.2181224489795,
+          "mean_driver_income": 652.7473,
+          "cv_driver_income": 0.7026779903293846
+        },
+        "MULTIPLICATIVE": {
+          "n": 708,
+          "n_short": 99,
+          "n_long": 529,
+          "accept_rate": 0.2387005649717514,
+          "accept_short": 0.3333333333333333,
+          "accept_long": 0.20415879017013233,
+          "mean_price": 421.3804943502825,
+          "mean_driver_income": 582.0993000000001,
+          "cv_driver_income": 0.850915392660795
+        }
+      },
+      "hours": [
+        {
+          "n": 21,
+          "n_short": 4,
+          "n_long": 15,
+          "accept_rate": 0.3333333333333333,
+          "accept_short": 0.5,
+          "accept_long": 0.26666666666666666,
+          "hour": 0,
+          "arm": "MULTIPLICATIVE"
+        },
+        {
+          "n": 13,
+          "n_short": 0,
+          "n_long": 11,
+          "accept_rate": 0.15384615384615385,
+          "accept_short": null,
+          "accept_long": 0.09090909090909091,
+          "hour": 1,
+          "arm": "ADDITIVE"
+        },
+        {
+          "n": 14,
+          "n_short": 2,
+          "n_long": 9,
+          "accept_rate": 0.35714285714285715,
+          "accept_short": 0.5,
+          "accept_long": 0.3333333333333333,
+          "hour": 2,
+          "arm": "MULTIPLICATIVE"
+        },
+        {
+          "n": 14,
+          "n_short": 2,
+          "n_long": 10,
+          "accept_rate": 0.0,
+          "accept_short": 0.0,
+          "accept_long": 0.0,
+          "hour": 3,
+          "arm": "ADDITIVE"
+        },
+        {
+          "n": 15,
+          "n_short": 2,
+          "n_long": 12,
+          "accept_rate": 0.26666666666666666,
+          "accept_short": 0.0,
+          "accept_long": 0.25,
+          "hour": 4,
+          "arm": "MULTIPLICATIVE"
+        },
+        {
+          "n": 20,
+          "n_short": 1,
+          "n_long": 13,
+          "accept_rate": 0.5,
+          "accept_short": 1.0,
+          "accept_long": 0.3076923076923077,
+          "hour": 5,
+          "arm": "ADDITIVE"
+        },
+        {
+          "n": 101,
+          "n_short": 9,
+          "n_long": 87,
+          "accept_rate": 0.25742574257425743,
+          "accept_short": 0.1111111111111111,
+          "accept_long": 0.25287356321839083,
+          "hour": 6,
+          "arm": "MULTIPLICATIVE"
+        },
+        {
+          "n": 87,
+          "n_short": 5,
+          "n_long": 78,
+          "accept_rate": 0.1724137931034483,
+          "accept_short": 0.6,
+          "accept_long": 0.1282051282051282,
+          "hour": 7,
+          "arm": "ADDITIVE"
+        },
+        {
+          "n": 101,
+          "n_short": 3,
+          "n_long": 87,
+          "accept_rate": 0.1782178217821782,
+          "accept_short": 0.0,
+          "accept_long": 0.14942528735632185,
+          "hour": 8,
+          "arm": "MULTIPLICATIVE"
+        },
+        {
+          "n": 99,
+          "n_short": 3,
+          "n_long": 83,
+          "accept_rate": 0.20202020202020202,
+          "accept_short": 0.6666666666666666,
+          "accept_long": 0.18072289156626506,
+          "hour": 9,
+          "arm": "ADDITIVE"
+        },
+        {
+          "n": 95,
+          "n_short": 7,
+          "n_long": 82,
+          "accept_rate": 0.30526315789473685,
+          "accept_short": 0.2857142857142857,
+          "accept_long": 0.3048780487804878,
+          "hour": 10,
+          "arm": "MULTIPLICATIVE"
+        },
+        {
+          "n": 94,
+          "n_short": 3,
+          "n_long": 84,
+          "accept_rate": 0.2765957446808511,
+          "accept_short": 1.0,
+          "accept_long": 0.2261904761904762,
+          "hour": 11,
+          "arm": "ADDITIVE"
+        },
+        {
+          "n": 44,
+          "n_short": 3,
+          "n_long": 35,
+          "accept_rate": 0.2727272727272727,
+          "accept_short": 0.0,
+          "accept_long": 0.2571428571428571,
+          "hour": 12,
+          "arm": "MULTIPLICATIVE"
+        },
+        {
+          "n": 46,
+          "n_short": 4,
+          "n_long": 33,
+          "accept_rate": 0.21739130434782608,
+          "accept_short": 0.75,
+          "accept_long": 0.18181818181818182,
+          "hour": 13,
+          "arm": "ADDITIVE"
+        },
+        {
+          "n": 50,
+          "n_short": 6,
+          "n_long": 38,
+          "accept_rate": 0.22,
+          "accept_short": 0.0,
+          "accept_long": 0.2631578947368421,
+          "hour": 14,
+          "arm": "MULTIPLICATIVE"
+        },
+        {
+          "n": 57,
+          "n_short": 4,
+          "n_long": 41,
+          "accept_rate": 0.3333333333333333,
+          "accept_short": 0.75,
+          "accept_long": 0.24390243902439024,
+          "hour": 15,
+          "arm": "ADDITIVE"
+        },
+        {
+          "n": 40,
+          "n_short": 6,
+          "n_long": 30,
+          "accept_rate": 0.175,
+          "accept_short": 0.16666666666666666,
+          "accept_long": 0.16666666666666666,
+          "hour": 16,
+          "arm": "MULTIPLICATIVE"
+        },
+        {
+          "n": 98,
+          "n_short": 28,
+          "n_long": 49,
+          "accept_rate": 0.30612244897959184,
+          "accept_short": 0.75,
+          "accept_long": 0.061224489795918366,
+          "hour": 17,
+          "arm": "ADDITIVE"
+        },
+        {
+          "n": 110,
+          "n_short": 32,
+          "n_long": 63,
+          "accept_rate": 0.2545454545454545,
+          "accept_short": 0.53125,
+          "accept_long": 0.1111111111111111,
+          "hour": 18,
+          "arm": "MULTIPLICATIVE"
+        },
+        {
+          "n": 85,
+          "n_short": 21,
+          "n_long": 52,
+          "accept_rate": 0.35294117647058826,
+          "accept_short": 0.7619047619047619,
+          "accept_long": 0.11538461538461539,
+          "hour": 19,
+          "arm": "ADDITIVE"
+        },
+        {
+          "n": 98,
+          "n_short": 23,
+          "n_long": 55,
+          "accept_rate": 0.20408163265306123,
+          "accept_short": 0.391304347826087,
+          "accept_long": 0.09090909090909091,
+          "hour": 20,
+          "arm": "MULTIPLICATIVE"
+        },
+        {
+          "n": 103,
+          "n_short": 21,
+          "n_long": 67,
+          "accept_rate": 0.3106796116504854,
+          "accept_short": 0.7619047619047619,
+          "accept_long": 0.14925373134328357,
+          "hour": 21,
+          "arm": "ADDITIVE"
+        },
+        {
+          "n": 19,
+          "n_short": 2,
+          "n_long": 16,
+          "accept_rate": 0.10526315789473684,
+          "accept_short": 0.0,
+          "accept_long": 0.125,
+          "hour": 22,
+          "arm": "MULTIPLICATIVE"
+        },
+        {
+          "n": 19,
+          "n_short": 0,
+          "n_long": 17,
+          "accept_rate": 0.2631578947368421,
+          "accept_short": null,
+          "accept_long": 0.23529411764705882,
+          "hour": 23,
+          "arm": "ADDITIVE"
+        }
+      ],
+      "pairs": [
+        {
+          "even_hour": 0,
+          "odd_hour": 1,
+          "multiplicative_n": 21,
+          "additive_n": 13,
+          "accept_rate_diff": -0.17948717948717946,
+          "multiplicative_n_short": 4,
+          "additive_n_short": 0,
+          "accept_short_diff": null
+        },
+        {
+          "even_hour": 2,
+          "odd_hour": 3,
+          "multiplicative_n": 14,
+          "additive_n": 14,
+          "accept_rate_diff": -0.35714285714285715,
+          "multiplicative_n_short": 2,
+          "additive_n_short": 2,
+          "accept_short_diff": -0.5
+        },
+        {
+          "even_hour": 4,
+          "odd_hour": 5,
+          "multiplicative_n": 15,
+          "additive_n": 20,
+          "accept_rate_diff": 0.23333333333333334,
+          "multiplicative_n_short": 2,
+          "additive_n_short": 1,
+          "accept_short_diff": 1.0
+        },
+        {
+          "even_hour": 6,
+          "odd_hour": 7,
+          "multiplicative_n": 101,
+          "additive_n": 87,
+          "accept_rate_diff": -0.08501194947080914,
+          "multiplicative_n_short": 9,
+          "additive_n_short": 5,
+          "accept_short_diff": 0.4888888888888889
+        },
+        {
+          "even_hour": 8,
+          "odd_hour": 9,
+          "multiplicative_n": 101,
+          "additive_n": 99,
+          "accept_rate_diff": 0.023802380238023807,
+          "multiplicative_n_short": 3,
+          "additive_n_short": 3,
+          "accept_short_diff": 0.6666666666666666
+        },
+        {
+          "even_hour": 10,
+          "odd_hour": 11,
+          "multiplicative_n": 95,
+          "additive_n": 94,
+          "accept_rate_diff": -0.028667413213885773,
+          "multiplicative_n_short": 7,
+          "additive_n_short": 3,
+          "accept_short_diff": 0.7142857142857143
+        },
+        {
+          "even_hour": 12,
+          "odd_hour": 13,
+          "multiplicative_n": 44,
+          "additive_n": 46,
+          "accept_rate_diff": -0.055335968379446626,
+          "multiplicative_n_short": 3,
+          "additive_n_short": 4,
+          "accept_short_diff": 0.75
+        },
+        {
+          "even_hour": 14,
+          "odd_hour": 15,
+          "multiplicative_n": 50,
+          "additive_n": 57,
+          "accept_rate_diff": 0.11333333333333331,
+          "multiplicative_n_short": 6,
+          "additive_n_short": 4,
+          "accept_short_diff": 0.75
+        },
+        {
+          "even_hour": 16,
+          "odd_hour": 17,
+          "multiplicative_n": 40,
+          "additive_n": 98,
+          "accept_rate_diff": 0.13112244897959185,
+          "multiplicative_n_short": 6,
+          "additive_n_short": 28,
+          "accept_short_diff": 0.5833333333333334
+        },
+        {
+          "even_hour": 18,
+          "odd_hour": 19,
+          "multiplicative_n": 110,
+          "additive_n": 85,
+          "accept_rate_diff": 0.09839572192513374,
+          "multiplicative_n_short": 32,
+          "additive_n_short": 21,
+          "accept_short_diff": 0.23065476190476186
+        },
+        {
+          "even_hour": 20,
+          "odd_hour": 21,
+          "multiplicative_n": 98,
+          "additive_n": 103,
+          "accept_rate_diff": 0.10659797899742418,
+          "multiplicative_n_short": 23,
+          "additive_n_short": 21,
+          "accept_short_diff": 0.3706004140786749
+        },
+        {
+          "even_hour": 22,
+          "odd_hour": 23,
+          "multiplicative_n": 19,
+          "additive_n": 19,
+          "accept_rate_diff": 0.15789473684210525,
+          "multiplicative_n_short": 2,
+          "additive_n_short": 0,
+          "accept_short_diff": null
+        }
+      ],
+      "n_arm_mismatch": 0,
+      "sign_flip_accept_short": {
+        "estimand": "mean of (additive hour - previous multiplicative hour)",
+        "n_pairs": 10,
+        "n_assignments": 1024,
+        "observed_mean_diff": 0.5054429779158041,
+        "n_as_extreme": 10,
+        "two_sided_p": 0.009765625,
+        "diffs": [
+          -0.5,
+          1.0,
+          0.4888888888888889,
+          0.6666666666666666,
+          0.7142857142857143,
+          0.75,
+          0.75,
+          0.5833333333333334,
+          0.23065476190476186,
+          0.3706004140786749
+        ]
+      },
+      "sign_flip_accept_rate": {
+        "estimand": "mean of (additive hour - previous multiplicative hour)",
+        "n_pairs": 12,
+        "n_assignments": 4096,
+        "observed_mean_diff": 0.013236213829563944,
+        "n_as_extreme": 3228,
+        "two_sided_p": 0.7880859375,
+        "diffs": [
+          -0.17948717948717946,
+          -0.35714285714285715,
+          0.23333333333333334,
+          -0.08501194947080914,
+          0.023802380238023807,
+          -0.028667413213885773,
+          -0.055335968379446626,
+          0.11333333333333331,
+          0.13112244897959185,
+          0.09839572192513374,
+          0.10659797899742418,
+          0.15789473684210525
+        ]
+      }
     },
-    "MULTIPLICATIVE": {
-      "n": 708,
-      "n_short": 99,
-      "n_long": 529,
-      "accept_rate": 0.2387005649717514,
-      "accept_short": 0.3333333333333333,
-      "accept_long": 0.20415879017013233,
-      "mean_price": 421.3804943502825,
-      "mean_driver_income": 582.0993000000001,
-      "cv_driver_income": 0.850915392660795
+    "no_cherry_penalty": {
+      "arms": {
+        "ADDITIVE": {
+          "n": 735,
+          "n_short": 92,
+          "n_long": 538,
+          "accept_rate": 0.2707482993197279,
+          "accept_short": 0.7391304347826086,
+          "accept_long": 0.16356877323420074,
+          "mean_price": 412.2181224489795,
+          "mean_driver_income": 652.7473,
+          "cv_driver_income": 0.7026779903293846
+        },
+        "MULTIPLICATIVE": {
+          "n": 708,
+          "n_short": 99,
+          "n_long": 529,
+          "accept_rate": 0.2951977401129944,
+          "accept_short": 0.7373737373737373,
+          "accept_long": 0.20415879017013233,
+          "mean_price": 421.3804943502825,
+          "mean_driver_income": 708.7583000000001,
+          "cv_driver_income": 0.768779388621055
+        }
+      },
+      "hours": [
+        {
+          "n": 21,
+          "n_short": 4,
+          "n_long": 15,
+          "accept_rate": 0.42857142857142855,
+          "accept_short": 1.0,
+          "accept_long": 0.26666666666666666,
+          "hour": 0,
+          "arm": "MULTIPLICATIVE"
+        },
+        {
+          "n": 13,
+          "n_short": 0,
+          "n_long": 11,
+          "accept_rate": 0.15384615384615385,
+          "accept_short": null,
+          "accept_long": 0.09090909090909091,
+          "hour": 1,
+          "arm": "ADDITIVE"
+        },
+        {
+          "n": 14,
+          "n_short": 2,
+          "n_long": 9,
+          "accept_rate": 0.42857142857142855,
+          "accept_short": 1.0,
+          "accept_long": 0.3333333333333333,
+          "hour": 2,
+          "arm": "MULTIPLICATIVE"
+        },
+        {
+          "n": 14,
+          "n_short": 2,
+          "n_long": 10,
+          "accept_rate": 0.0,
+          "accept_short": 0.0,
+          "accept_long": 0.0,
+          "hour": 3,
+          "arm": "ADDITIVE"
+        },
+        {
+          "n": 15,
+          "n_short": 2,
+          "n_long": 12,
+          "accept_rate": 0.3333333333333333,
+          "accept_short": 0.5,
+          "accept_long": 0.25,
+          "hour": 4,
+          "arm": "MULTIPLICATIVE"
+        },
+        {
+          "n": 20,
+          "n_short": 1,
+          "n_long": 13,
+          "accept_rate": 0.5,
+          "accept_short": 1.0,
+          "accept_long": 0.3076923076923077,
+          "hour": 5,
+          "arm": "ADDITIVE"
+        },
+        {
+          "n": 101,
+          "n_short": 9,
+          "n_long": 87,
+          "accept_rate": 0.3069306930693069,
+          "accept_short": 0.6666666666666666,
+          "accept_long": 0.25287356321839083,
+          "hour": 6,
+          "arm": "MULTIPLICATIVE"
+        },
+        {
+          "n": 87,
+          "n_short": 5,
+          "n_long": 78,
+          "accept_rate": 0.1724137931034483,
+          "accept_short": 0.6,
+          "accept_long": 0.1282051282051282,
+          "hour": 7,
+          "arm": "ADDITIVE"
+        },
+        {
+          "n": 101,
+          "n_short": 3,
+          "n_long": 87,
+          "accept_rate": 0.19801980198019803,
+          "accept_short": 0.6666666666666666,
+          "accept_long": 0.14942528735632185,
+          "hour": 8,
+          "arm": "MULTIPLICATIVE"
+        },
+        {
+          "n": 99,
+          "n_short": 3,
+          "n_long": 83,
+          "accept_rate": 0.20202020202020202,
+          "accept_short": 0.6666666666666666,
+          "accept_long": 0.18072289156626506,
+          "hour": 9,
+          "arm": "ADDITIVE"
+        },
+        {
+          "n": 95,
+          "n_short": 7,
+          "n_long": 82,
+          "accept_rate": 0.35789473684210527,
+          "accept_short": 1.0,
+          "accept_long": 0.3048780487804878,
+          "hour": 10,
+          "arm": "MULTIPLICATIVE"
+        },
+        {
+          "n": 94,
+          "n_short": 3,
+          "n_long": 84,
+          "accept_rate": 0.2765957446808511,
+          "accept_short": 1.0,
+          "accept_long": 0.2261904761904762,
+          "hour": 11,
+          "arm": "ADDITIVE"
+        },
+        {
+          "n": 44,
+          "n_short": 3,
+          "n_long": 35,
+          "accept_rate": 0.29545454545454547,
+          "accept_short": 0.3333333333333333,
+          "accept_long": 0.2571428571428571,
+          "hour": 12,
+          "arm": "MULTIPLICATIVE"
+        },
+        {
+          "n": 46,
+          "n_short": 4,
+          "n_long": 33,
+          "accept_rate": 0.21739130434782608,
+          "accept_short": 0.75,
+          "accept_long": 0.18181818181818182,
+          "hour": 13,
+          "arm": "ADDITIVE"
+        },
+        {
+          "n": 50,
+          "n_short": 6,
+          "n_long": 38,
+          "accept_rate": 0.3,
+          "accept_short": 0.6666666666666666,
+          "accept_long": 0.2631578947368421,
+          "hour": 14,
+          "arm": "MULTIPLICATIVE"
+        },
+        {
+          "n": 57,
+          "n_short": 4,
+          "n_long": 41,
+          "accept_rate": 0.3333333333333333,
+          "accept_short": 0.75,
+          "accept_long": 0.24390243902439024,
+          "hour": 15,
+          "arm": "ADDITIVE"
+        },
+        {
+          "n": 40,
+          "n_short": 6,
+          "n_long": 30,
+          "accept_rate": 0.275,
+          "accept_short": 0.8333333333333334,
+          "accept_long": 0.16666666666666666,
+          "hour": 16,
+          "arm": "MULTIPLICATIVE"
+        },
+        {
+          "n": 98,
+          "n_short": 28,
+          "n_long": 49,
+          "accept_rate": 0.30612244897959184,
+          "accept_short": 0.75,
+          "accept_long": 0.061224489795918366,
+          "hour": 17,
+          "arm": "ADDITIVE"
+        },
+        {
+          "n": 110,
+          "n_short": 32,
+          "n_long": 63,
+          "accept_rate": 0.3090909090909091,
+          "accept_short": 0.71875,
+          "accept_long": 0.1111111111111111,
+          "hour": 18,
+          "arm": "MULTIPLICATIVE"
+        },
+        {
+          "n": 85,
+          "n_short": 21,
+          "n_long": 52,
+          "accept_rate": 0.35294117647058826,
+          "accept_short": 0.7619047619047619,
+          "accept_long": 0.11538461538461539,
+          "hour": 19,
+          "arm": "ADDITIVE"
+        },
+        {
+          "n": 98,
+          "n_short": 23,
+          "n_long": 55,
+          "accept_rate": 0.2857142857142857,
+          "accept_short": 0.7391304347826086,
+          "accept_long": 0.09090909090909091,
+          "hour": 20,
+          "arm": "MULTIPLICATIVE"
+        },
+        {
+          "n": 103,
+          "n_short": 21,
+          "n_long": 67,
+          "accept_rate": 0.3106796116504854,
+          "accept_short": 0.7619047619047619,
+          "accept_long": 0.14925373134328357,
+          "hour": 21,
+          "arm": "ADDITIVE"
+        },
+        {
+          "n": 19,
+          "n_short": 2,
+          "n_long": 16,
+          "accept_rate": 0.15789473684210525,
+          "accept_short": 0.5,
+          "accept_long": 0.125,
+          "hour": 22,
+          "arm": "MULTIPLICATIVE"
+        },
+        {
+          "n": 19,
+          "n_short": 0,
+          "n_long": 17,
+          "accept_rate": 0.2631578947368421,
+          "accept_short": null,
+          "accept_long": 0.23529411764705882,
+          "hour": 23,
+          "arm": "ADDITIVE"
+        }
+      ],
+      "pairs": [
+        {
+          "even_hour": 0,
+          "odd_hour": 1,
+          "multiplicative_n": 21,
+          "additive_n": 13,
+          "accept_rate_diff": -0.2747252747252747,
+          "multiplicative_n_short": 4,
+          "additive_n_short": 0,
+          "accept_short_diff": null
+        },
+        {
+          "even_hour": 2,
+          "odd_hour": 3,
+          "multiplicative_n": 14,
+          "additive_n": 14,
+          "accept_rate_diff": -0.42857142857142855,
+          "multiplicative_n_short": 2,
+          "additive_n_short": 2,
+          "accept_short_diff": -1.0
+        },
+        {
+          "even_hour": 4,
+          "odd_hour": 5,
+          "multiplicative_n": 15,
+          "additive_n": 20,
+          "accept_rate_diff": 0.16666666666666669,
+          "multiplicative_n_short": 2,
+          "additive_n_short": 1,
+          "accept_short_diff": 0.5
+        },
+        {
+          "even_hour": 6,
+          "odd_hour": 7,
+          "multiplicative_n": 101,
+          "additive_n": 87,
+          "accept_rate_diff": -0.13451689996585864,
+          "multiplicative_n_short": 9,
+          "additive_n_short": 5,
+          "accept_short_diff": -0.06666666666666665
+        },
+        {
+          "even_hour": 8,
+          "odd_hour": 9,
+          "multiplicative_n": 101,
+          "additive_n": 99,
+          "accept_rate_diff": 0.004000400040003987,
+          "multiplicative_n_short": 3,
+          "additive_n_short": 3,
+          "accept_short_diff": 0.0
+        },
+        {
+          "even_hour": 10,
+          "odd_hour": 11,
+          "multiplicative_n": 95,
+          "additive_n": 94,
+          "accept_rate_diff": -0.08129899216125419,
+          "multiplicative_n_short": 7,
+          "additive_n_short": 3,
+          "accept_short_diff": 0.0
+        },
+        {
+          "even_hour": 12,
+          "odd_hour": 13,
+          "multiplicative_n": 44,
+          "additive_n": 46,
+          "accept_rate_diff": -0.07806324110671939,
+          "multiplicative_n_short": 3,
+          "additive_n_short": 4,
+          "accept_short_diff": 0.4166666666666667
+        },
+        {
+          "even_hour": 14,
+          "odd_hour": 15,
+          "multiplicative_n": 50,
+          "additive_n": 57,
+          "accept_rate_diff": 0.033333333333333326,
+          "multiplicative_n_short": 6,
+          "additive_n_short": 4,
+          "accept_short_diff": 0.08333333333333337
+        },
+        {
+          "even_hour": 16,
+          "odd_hour": 17,
+          "multiplicative_n": 40,
+          "additive_n": 98,
+          "accept_rate_diff": 0.03112244897959182,
+          "multiplicative_n_short": 6,
+          "additive_n_short": 28,
+          "accept_short_diff": -0.08333333333333337
+        },
+        {
+          "even_hour": 18,
+          "odd_hour": 19,
+          "multiplicative_n": 110,
+          "additive_n": 85,
+          "accept_rate_diff": 0.043850267379679175,
+          "multiplicative_n_short": 32,
+          "additive_n_short": 21,
+          "accept_short_diff": 0.04315476190476186
+        },
+        {
+          "even_hour": 20,
+          "odd_hour": 21,
+          "multiplicative_n": 98,
+          "additive_n": 103,
+          "accept_rate_diff": 0.02496532593619971,
+          "multiplicative_n_short": 23,
+          "additive_n_short": 21,
+          "accept_short_diff": 0.022774327122153215
+        },
+        {
+          "even_hour": 22,
+          "odd_hour": 23,
+          "multiplicative_n": 19,
+          "additive_n": 19,
+          "accept_rate_diff": 0.10526315789473684,
+          "multiplicative_n_short": 2,
+          "additive_n_short": 0,
+          "accept_short_diff": null
+        }
+      ],
+      "n_arm_mismatch": 0,
+      "sign_flip_accept_short": {
+        "estimand": "mean of (additive hour - previous multiplicative hour)",
+        "n_pairs": 10,
+        "n_assignments": 1024,
+        "observed_mean_diff": -0.00840709109730849,
+        "n_as_extreme": 928,
+        "two_sided_p": 0.90625,
+        "diffs": [
+          -1.0,
+          0.5,
+          -0.06666666666666665,
+          0.0,
+          0.0,
+          0.4166666666666667,
+          0.08333333333333337,
+          -0.08333333333333337,
+          0.04315476190476186,
+          0.022774327122153215
+        ]
+      },
+      "sign_flip_accept_rate": {
+        "estimand": "mean of (additive hour - previous multiplicative hour)",
+        "n_pairs": 12,
+        "n_assignments": 4096,
+        "observed_mean_diff": -0.048997853025026995,
+        "n_as_extreme": 1450,
+        "two_sided_p": 0.35400390625,
+        "diffs": [
+          -0.2747252747252747,
+          -0.42857142857142855,
+          0.16666666666666669,
+          -0.13451689996585864,
+          0.004000400040003987,
+          -0.08129899216125419,
+          -0.07806324110671939,
+          0.033333333333333326,
+          0.03112244897959182,
+          0.043850267379679175,
+          0.02496532593619971,
+          0.10526315789473684
+        ]
+      }
     }
+  },
+  "reading": {
+    "short_trips": "Со штрафом короткие поездки короче 5 км принимаются в 33.3% случаев в мультипликативной руке и в 73.9% в аддитивной (разрыв 40.6 п.п.). Без штрафа — 73.7% и 73.9% (разрыв 0.2 п.п.). Без штрафа разрыв пропадает. Результат со штрафом целиком заложен этим допущением: это честный вывод, а не слабость модели.",
+    "sign_flip": "Одни виртуальные сутки: 96 тиков по 15 минут, 12 часов на каждую руку. Час 7 собран из тика в начале суток и тика в конце, остальные часы — по четыре тика. Пара — чётный час (мультипликативная рука) и следующий нечётный (аддитивная). Разница — доля принятия в аддитивном часе минус доля в мультипликативном. Бутстрэп по такому числу пар даёт слишком узкий интервал: при ресемплинге почти не видно хвостов. Поэтому здесь точный перестановочный тест. У каждой пары оба знака разницы, и наблюдаемая средняя сравнивается со всеми назначениями. Это не доверительный интервал. В коротких поездках нет разницы у пар 0–1 (коротких 4 и 0), 22–23 (коротких 2 и 0): долю там не из чего считать. В тест входят 10 пар и 1024 назначений, не 4096. В 6 из 10 таких пар хотя бы в одном часе меньше 5 коротких поездок, и у каждой пары один вес: тест говорит о среднем этих часовых долей, а не об отдельных поездках. По всем поездкам пары полные, это 12 пар и 4096 назначений. Короткие, со штрафом: 10 пар, средняя разница +0.505, 10 из 1024 назначений не менее экстремальны, p = 0.0098. Короткие, без штрафа: 10 пар, средняя разница -0.008, 928 из 1024 назначений не менее экстремальны, p = 0.9062. Все поездки, со штрафом: 12 пар, средняя разница +0.013, 3228 из 4096 назначений не менее экстремальны, p = 0.7881. Все поездки, без штрафа: 12 пар, средняя разница -0.049, 1450 из 4096 назначений не менее экстремальны, p = 0.3540.",
+    "cv": "Со штрафом CV аддитивной руки 0.703, мультипликативной 0.851, средний доход аддитивной руки 652.7 ₽, мультипликативной 582.1 ₽. Один прогон, seed 42, второго seed нет. CV делит разброс на среднее, поэтому разница CV может получиться из-за того, что аддитивная рука чаще принимает короткие поездки. Без штрафа аддитивная рука остаётся на CV 0.703 и 652.7 ₽, мультипликативная — 708.8 ₽ и CV 0.769. Короткие поездки при этом принимаются почти одинаково. Пока seed один, из CV и среднего дохода отдельный вывод не следует."
   }
 }

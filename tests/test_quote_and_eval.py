@@ -26,7 +26,59 @@ def test_cherry_pick_lowers_short_multiplicative_accept():
         arm="MULTIPLICATIVE",
         surge_multiplier=multiplicative.surge_multiplier,
     )
+    assert multiplicative.surge_multiplier > 1.1
     assert p_multiplicative < p_additive
+
+
+def test_cherry_penalty_is_optional_and_does_not_touch_additive():
+    duration, distance, ds_ratio = 180.0, 2.0, 3.0
+    additive = quote_fare(duration, distance, ds_ratio, "ADDITIVE")
+    multiplicative = quote_fare(duration, distance, ds_ratio, "MULTIPLICATIVE")
+    p_additive_on = accept_probability(
+        price=additive.price,
+        distance_km=distance,
+        duration_sec=duration,
+        arm="ADDITIVE",
+        surge_multiplier=additive.surge_multiplier,
+        apply_cherry_penalty=True,
+    )
+    p_additive_off = accept_probability(
+        price=additive.price,
+        distance_km=distance,
+        duration_sec=duration,
+        arm="ADDITIVE",
+        surge_multiplier=additive.surge_multiplier,
+        apply_cherry_penalty=False,
+    )
+    p_multiplicative_on = accept_probability(
+        price=multiplicative.price,
+        distance_km=distance,
+        duration_sec=duration,
+        arm="MULTIPLICATIVE",
+        surge_multiplier=multiplicative.surge_multiplier,
+        apply_cherry_penalty=True,
+    )
+    p_multiplicative_off = accept_probability(
+        price=multiplicative.price,
+        distance_km=distance,
+        duration_sec=duration,
+        arm="MULTIPLICATIVE",
+        surge_multiplier=multiplicative.surge_multiplier,
+        apply_cherry_penalty=False,
+    )
+    assert p_additive_on == p_additive_off
+    assert p_multiplicative_off > p_multiplicative_on
+
+
+def test_sign_flip_of_three_positive_diffs():
+    from src.eval.switchback import sign_flip_test
+
+    result = sign_flip_test([1.0, 1.0, 1.0])
+    assert result["n_pairs"] == 3
+    assert result["n_assignments"] == 8
+    assert result["n_as_extreme"] == 2
+    assert result["two_sided_p"] == 0.25
+    assert result["observed_mean_diff"] == 1.0
 
 
 def test_morning_destinations_prefer_the_center():
@@ -75,9 +127,21 @@ def test_switchback_eval_is_deterministic():
     second = run(n_ticks=4, seed=1, num_drivers=20)
     assert first == second
     assert first["n_trips"] > 0
-    assert {"ADDITIVE", "MULTIPLICATIVE"} <= set(first["arms"])
-    for stats in first["arms"].values():
-        assert 0.0 <= stats["accept_rate"] <= 1.0
+    assert set(first["policies"]) == {"with_cherry_penalty", "no_cherry_penalty"}
+    assert set(first["reading"]) == {"short_trips", "sign_flip", "cv"}
+    for policy in first["policies"].values():
+        assert {"ADDITIVE", "MULTIPLICATIVE"} <= set(policy["arms"])
+        assert len(policy["hours"]) == 24
+        assert len(policy["pairs"]) == 12
+        assert "sign_flip_accept_short" in policy
+        assert "sign_flip_accept_rate" in policy
+        for stats in policy["arms"].values():
+            assert stats["accept_rate"] is None or 0.0 <= stats["accept_rate"] <= 1.0
+    with_penalty = first["policies"]["with_cherry_penalty"]["arms"]
+    no_penalty = first["policies"]["no_cherry_penalty"]["arms"]
+    assert with_penalty["ADDITIVE"] == no_penalty["ADDITIVE"]
+    assert with_penalty["MULTIPLICATIVE"]["mean_price"] == no_penalty["MULTIPLICATIVE"]["mean_price"]
+    assert with_penalty["MULTIPLICATIVE"]["accept_long"] == no_penalty["MULTIPLICATIVE"]["accept_long"]
 
 
 def test_demand_model_beats_mean_on_holdout():
