@@ -33,13 +33,18 @@ CPE оценивает **один** эффект: как **аддитивная 
 
 ## Что делает отрицательный score
 
-`uplift_score` — изменение вероятности принятия от надбавки. Если он ниже `-CAUSAL_UPLIFT_THRESHOLD` (по умолчанию `0.05`):
+`uplift_score` — изменение вероятности принятия от надбавки. DPE снимает надбавку только если одновременно:
+
+- score ниже `-CAUSAL_UPLIFT_THRESHOLD` (по умолчанию `0.05`);
+- ответ содержит `ranking_supports_decision: true`. CPE ставит это, когда нижняя граница бутстрепа Qini на holdout выше нуля.
+
+Если интервал накрывает ноль, поля нет или оно `false`, цена не меняется. В этом случае порог −0.05 резал бы надбавку по шуму. Когда оба условия выполнены:
 
 - цена становится базовым тарифом, `surge_bonus = 0`;
 - `test_group = CAUSAL_NO_SURGE`;
 - в ответе `causal_override = true`, плюс `causal_uplift_score` и `causal_recommended_treatment`.
 
-Метки CPE: `SURCHARGE`, `KEEP_QUOTE`, `NO_SURCHARGE`. Действие DPE завязано на числовой порог, не на строку скидки.
+Метки CPE: `SURCHARGE`, `KEEP_QUOTE`, `NO_SURCHARGE`. Строка метки цену не меняет. Меняет пара из score и `ranking_supports_decision`.
 
 ## Лог `simulation_analytics`
 

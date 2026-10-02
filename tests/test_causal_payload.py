@@ -28,12 +28,16 @@ def test_only_an_additive_hour_with_a_driver_calls_cpe(monkeypatch: pytest.Monke
     monkeypatch.setattr(config, "SIM_MODE", True)
     monkeypatch.setattr(config, "CAUSAL_ENABLED", True)
     calls: list[dict] = []
+    state = {"supports": None}
 
     class _Response:
         status_code = 200
 
         def json(self):
-            return {"uplift_score": -0.2, "recommended_treatment": "NO_SURCHARGE"}
+            body = {"uplift_score": -0.2, "recommended_treatment": "NO_SURCHARGE"}
+            if state["supports"] is not None:
+                body["ranking_supports_decision"] = state["supports"]
+            return body
 
     def fake_post(url, json, timeout):
         calls.append({"url": url, "json": json, "timeout": timeout})
@@ -63,9 +67,16 @@ def test_only_an_additive_hour_with_a_driver_calls_cpe(monkeypatch: pytest.Monke
         assert no_driver.status_code == 200
         assert calls == []
 
+        state["supports"] = False
+        noisy = client.post("/api/v1/search", json=search)
+        assert noisy.status_code == 200
+        assert noisy.json()["causal_override"] is False
+        assert noisy.json()["test_group"] != "CAUSAL_NO_SURGE"
+
+        state["supports"] = True
         odd = client.post("/api/v1/search", json=search)
         assert odd.status_code == 200
-        assert len(calls) == 1
+        assert len(calls) == 2
         body = calls[0]["json"]
         assert body["driver_id"] == "drv_causal"
         assert set(body["features"]) == {

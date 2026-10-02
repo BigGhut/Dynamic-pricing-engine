@@ -162,7 +162,15 @@ def price_search(feature_store, driver_history_store, payload: SearchRequest) ->
                         cdata = resp.json()
                         causal_uplift_score = cdata.get("uplift_score")
                         causal_recommended_treatment = cdata.get("recommended_treatment")
-                        if causal_uplift_score is not None and float(causal_uplift_score) < -threshold:
+                        # A score under the threshold changes the fare only when CPE
+                        # says the holdout Qini interval is entirely above zero.
+                        # Missing or false means the cut would follow noise.
+                        supports_decision = cdata.get("ranking_supports_decision") is True
+                        if (
+                            causal_uplift_score is not None
+                            and float(causal_uplift_score) < -threshold
+                            and supports_decision
+                        ):
                             causal_override = True
                             surge_bonus = 0.0
                             proposed_price = base_fare
