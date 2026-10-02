@@ -29,7 +29,9 @@ CatBoost в репозитории учится на синтетической 
 
 Водитель в симуляторе принимает заказ логистической функцией от руб/час после комиссии 20% и 6 ₽/км. На короткой мультипликативной поездке со surge выше 1.1× к полезности применяется дополнительный штраф: это заложенное в модель cherry-picking, не наблюдение за водителями. Штраф не меняет цену. Обе политики считаются на одних и тех же поездках и на одной равномерной случайной величине.
 
-`python -m src.eval.switchback` всегда пишет обе колонки в [reports/metrics.json](reports/metrics.json). `python run_simulation.py --no-cherry-penalty` выключает штраф только в живом цикле: в SQLite попадает принятие без штрафа.
+Формула цены живёт в `src/pricing.py`, сборка котировки — в `src/service/`. Модель водителя, порог 900 ₽/ч и штраф cherry-picking лежат в `src/sim/driver_model.py`: это допущения симулятора, не часть котировки.
+
+`python -m src.eval.switchback` всегда пишет обе колонки в [reports/metrics.json](reports/metrics.json). `python scripts/run_simulation.py --no-cherry-penalty` выключает штраф только в живом цикле: в SQLite попадает принятие без штрафа. Ручки `POST /api/v1/virtual_hour`, `POST /api/v1/inject_fault` и `POST /api/v1/telemetry/edge` отвечают только при `SIM_MODE=true` и не входят в OpenAPI.
 
 Утро: спрос на окраине, назначение в центре. Вечер наоборот. Иначе origin и destination равномерны по графу.
 
@@ -65,11 +67,10 @@ Python 3.10+. Датасет не нужен.
 pip install -r requirements.txt
 python -m pytest tests -q
 python -m src.eval.switchback
-python -m uvicorn src.api.main:app --host 127.0.0.1 --port 8000
-streamlit run app/dashboard.py
+python scripts/run_local.py
 ```
 
-`streamlit run` сам поднимает API и симулятор, если на `127.0.0.1:8000` никто не отвечает. Ручки: `GET /health`, `POST /api/v1/search`, `POST /api/v1/ping`, `GET /api/v1/graph/state`.
+`python scripts/run_local.py` поднимает API с `SIM_MODE=true`, симулятор и дашборд. Дашборд сам сервер не запускает. Публичные ручки: `GET /health`, `POST /api/v1/search`, `POST /api/v1/ping`, `GET /api/v1/graph/state`. Отдельно API без симулятора: `python -m uvicorn src.api.main:app --host 127.0.0.1 --port 8000`.
 
 Локально feature store живёт в памяти. Redis не обязателен.
 
@@ -77,11 +78,11 @@ streamlit run app/dashboard.py
 docker compose up --build
 ```
 
-Compose поднимает Redis, API на `:8000`, симулятор и Streamlit на `:8501`. У API, симулятора и дашборда один файл SQLite. В контейнере CPE выключен. Чтобы включить его локально: CPE на `:8100` и `CAUSAL_ENABLED=true`.
+Compose поднимает Redis, API на `:8000`, симулятор и Streamlit на `:8501`. У API в compose включён `SIM_MODE`, иначе симулятор не запишет виртуальный час и скорости рёбер. У API, симулятора и дашборда один файл SQLite. В контейнере CPE выключен. Чтобы включить его локально: CPE на `:8100` и `CAUSAL_ENABLED=true`.
 
 ## Стек
 
 - FastAPI, Pydantic, Uvicorn
 - Streamlit, Altair
 - H3 4.x, Redis, SQLite
-- CatBoost только в sandbox спроса `src/models/demand_model.py`
+- CatBoost только в sandbox спроса `experiments/demand_model.py`

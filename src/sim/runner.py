@@ -8,8 +8,8 @@ import requests
 
 from src import clock, config
 from src.models.road_graph import RoadGraph
-from src.pricing import accept_probability
 from src.runtime import HttpEngine
+from src.sim.driver_model import accept_probability
 
 API_URL = os.getenv("API_URL", "http://localhost:8000")
 

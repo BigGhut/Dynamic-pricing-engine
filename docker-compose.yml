@@ -17,6 +17,7 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - USE_LOCAL_SIMULATED_REDIS=false
       - CAUSAL_ENABLED=false
+      - SIM_MODE=true
       - DB_PATH=/data/dpe_database.db
     volumes:
       - dpe-data:/data
@@ -29,7 +30,7 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: dpe-simulator
-    command: ["python", "run_simulation.py"]
+    command: ["python", "scripts/run_simulation.py"]
     environment:
       - API_URL=http://api:8000
       - DB_PATH=/data/dpe_database.db
@@ -49,7 +50,6 @@ services:
     environment:
       - API_URL=http://api:8000
       - PUBLIC_API_URL=http://127.0.0.1:8000
-      - DPE_AUTOSTART=false
       - DB_PATH=/data/dpe_database.db
     volumes:
       - dpe-data:/data

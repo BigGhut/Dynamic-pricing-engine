@@ -1,11 +1,14 @@
 import random
 
+import requests
 from fastapi.testclient import TestClient
 
-from run_simulation import SimulationRunner
 from src import config
 from src.eval.switchback import run
-from src.pricing import accept_probability, quote_fare
+from src.pricing import quote_fare
+from src.runtime import HttpEngine
+from src.sim.driver_model import accept_probability
+from src.sim.runner import SimulationRunner
 
 
 def test_cherry_pick_lowers_short_multiplicative_accept():
@@ -97,6 +100,7 @@ def test_search_returns_the_priced_trip(monkeypatch):
     from src.models.road_graph import RoadGraph
 
     monkeypatch.setattr(config, "CAUSAL_ENABLED", False)
+    monkeypatch.setattr(config, "SIM_MODE", True)
     graph = RoadGraph()
     origin = graph.nodes["center"]
     dest = graph.nodes["mkad_0"]
@@ -144,8 +148,42 @@ def test_switchback_eval_is_deterministic():
     assert with_penalty["MULTIPLICATIVE"]["accept_long"] == no_penalty["MULTIPLICATIVE"]["accept_long"]
 
 
+def test_sim_routes_stay_hidden_until_sim_mode(monkeypatch):
+    from src.api.main import app
+
+    monkeypatch.setattr(config, "SIM_MODE", False)
+    monkeypatch.setattr(config, "FAULT_INJECTION_ACTIVE", False)
+    with TestClient(app) as client:
+        assert "/api/v1/virtual_hour" not in client.get("/openapi.json").json()["paths"]
+        assert client.post("/api/v1/virtual_hour", json={"hour": 11.0}).status_code == 404
+        assert client.post("/api/v1/inject_fault", json={"enabled": True}).status_code == 404
+        assert client.post(
+            "/api/v1/telemetry/edge",
+            json={"u": "center", "v": "mkad_0", "speed": 30},
+        ).status_code == 404
+    monkeypatch.setattr(config, "SIM_MODE", True)
+    with TestClient(app) as client:
+        assert client.post("/api/v1/virtual_hour", json={"hour": 11.0}).status_code == 200
+        turned_on = client.post("/api/v1/inject_fault", json={"enabled": True})
+        assert turned_on.status_code == 200
+        assert turned_on.json()["fault_injection_active"] is True
+        client.post("/api/v1/inject_fault", json={"enabled": False})
+
+
+def test_http_engine_counts_rejected_posts(monkeypatch):
+    engine = HttpEngine("http://127.0.0.1:9")
+
+    def boom(*args, **kwargs):
+        raise requests.ConnectionError("down")
+
+    monkeypatch.setattr("src.runtime.requests.post", boom)
+    engine.telemetry("center", "mkad_0", 30.0)
+    engine.set_hour(8.0)
+    assert engine.post_errors == 2
+
+
 def test_demand_model_beats_mean_on_holdout():
-    from src.models.demand_model import DemandElasticityModel
+    from experiments.demand_model import DemandElasticityModel
 
     model = DemandElasticityModel()
     frame = model.generate_synthetic_data(800)

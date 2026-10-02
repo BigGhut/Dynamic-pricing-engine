@@ -93,3 +93,5 @@ SIM_TOWN_CENTER_LON: float = 37.6173
 SIM_RADIUS_KM: float = 18.0
 # Флаг симуляции аварии (Fault Injection)
 FAULT_INJECTION_ACTIVE: bool = False
+# Ручки симулятора: virtual_hour, inject_fault, телеметрия рёбер. В обычном API их нет.
+SIM_MODE: bool = os.getenv("SIM_MODE", "false").lower() in ("1", "true", "yes")

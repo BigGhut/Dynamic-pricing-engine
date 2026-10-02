@@ -1,16 +1,18 @@
 import os
-import time
+
 import pytest
+
 from src import config
 
 # Настройки тестов перед импортом
 config.DB_PATH = "test_dpe_database.db"
 
-from src.models.geogrid import get_h3_index, get_k_ring
+from experiments.demand_model import DemandElasticityModel
 from src.bre.rules import BusinessRulesEngine
-from src.data.database import init_db, save_price_with_outbox, get_latest_price, get_db_connection
+from src.data.database import get_db_connection, get_latest_price, init_db, save_price_with_outbox
 from src.data.feature_store import FeatureStore
-from src.models.demand_model import DemandElasticityModel
+from src.models.geogrid import get_h3_index, get_k_ring
+
 
 @pytest.fixture(autouse=True)
 def setup_and_teardown_db():
@@ -253,6 +255,7 @@ def test_edge_weight_fallback():
 def test_additive_surge_math():
     """Аддитивная надбавка на 10 минут при ds=2 около 94 руб."""
     import math
+
     from src.pricing import quote_fare
 
     duration_sec = 600.0

@@ -1,7 +1,6 @@
 import os
 import time
 import sqlite3
-from urllib.parse import urlparse
 import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
@@ -12,9 +11,6 @@ import json
 
 API_URL = os.getenv("API_URL", "http://127.0.0.1:8000").rstrip("/")
 PUBLIC_API_URL = os.getenv("PUBLIC_API_URL", "http://127.0.0.1:8000").rstrip("/")
-_api_host = (urlparse(API_URL).hostname or "").lower()
-_local_api = _api_host in {"127.0.0.1", "localhost"}
-_autostart = os.getenv("DPE_AUTOSTART", "true").lower() in {"1", "true", "yes"}
 
 # Настройка страницы
 st.set_page_config(
@@ -22,47 +18,6 @@ st.set_page_config(
     page_icon="🚘",
     layout="wide"
 )
-
-# Автозапуск API-сервера и симулятора в монолитном фоновом режиме (для оффлайн и Streamlit Cloud)
-api_running = False
-try:
-    resp = requests.get(f"{API_URL}/health", timeout=0.15)
-    if resp.status_code == 200:
-        api_running = True
-except Exception:
-    pass
-
-if _autostart and _local_api and not api_running:
-    import threading
-    import uvicorn
-    from src.api.main import app as fastapi_app
-    from run_simulation import SimulationRunner
-
-    # 1. Запуск DPE API
-    def run_api_server():
-        try:
-            uvicorn.run(fastapi_app, host="127.0.0.1", port=8000, log_level="warning")
-        except Exception as e:
-            print(f"[Monolith API] Error: {e}")
-
-    api_thread = threading.Thread(target=run_api_server, daemon=True)
-    api_thread.start()
-
-    # 2. Запуск симулятора трафика
-    def run_simulator_loop():
-        time.sleep(3.0)  # Даем время API-серверу на запуск
-        try:
-            simulator = SimulationRunner()
-            while True:
-                simulator.run_tick()
-                time.sleep(4.0)
-        except Exception as e:
-            print(f"[Monolith Simulator] Error: {e}")
-
-    sim_thread = threading.Thread(target=run_simulator_loop, daemon=True)
-    sim_thread.start()
-    
-    st.toast("🚀 Сервис DPE и Симулятор автоматически запущены в фоне!")
 
 # Функция подключения к SQLite для логов ценообразования
 def get_data_from_db():

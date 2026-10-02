@@ -21,9 +21,7 @@ run-dashboard:
 	$(POETRY) run streamlit run app/dashboard.py
 
 run-local:
-	# Запуск API и Dashboard локально в фоне для Windows
-	start /B $(POETRY) run python -m uvicorn src.api.main:app --host 127.0.0.1 --port 8000
-	start /B $(POETRY) run streamlit run app/dashboard.py
+	python scripts/run_local.py
 
 docker-build:
 	docker compose build

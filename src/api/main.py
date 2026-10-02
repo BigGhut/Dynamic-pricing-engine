@@ -5,12 +5,13 @@ from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 
 from src import config
-from src.api.pricing_service import price_search
-from src.api.schemas import CompetitorPriceRequest, FaultInjectionRequest, PingRequest, PriceResponse, SearchRequest
+from src.api.schemas import CompetitorPriceRequest, PingRequest, PriceResponse, SearchRequest
+from src.api.sim_routes import router as sim_router
 from src.data.database import get_db_connection, init_db
 from src.data.feature_store import FeatureStore
 from src.data.outbox import OutboxWorker
 from src.features.driver_history import DriverHistoryStore
+from src.service.pricing import price_search
 
 # Глобальные инстансы сервисов
 feature_store = None
@@ -25,6 +26,7 @@ async def lifespan(app: FastAPI):
     print("[API] Запуск инициализации сервисов...")
     init_db()
     feature_store = FeatureStore()
+    app.state.feature_store = feature_store
     driver_history_store = DriverHistoryStore(db_path=config.DB_PATH)
     outbox_worker = OutboxWorker()
     outbox_worker.start()
@@ -43,6 +45,7 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan
 )
+app.include_router(sim_router)
 
 # Разрешаем CORS для Streamlit и веб-клиентов
 app.add_middleware(
@@ -120,25 +123,6 @@ def get_price_history_and_explanation(h3_index: str, limit: int = 10):
         rows = cursor.fetchall()
         return [dict(row) for row in rows]
 
-@app.post("/api/v1/inject_fault", status_code=status.HTTP_200_OK)
-def inject_fault(payload: FaultInjectionRequest):
-    """Включает или выключает симуляцию сбоя в ML-микросервисе."""
-    config.FAULT_INJECTION_ACTIVE = payload.enabled
-    status_str = "activated" if payload.enabled else "deactivated"
-    print(f"[API] [FAULT_INJECTION] Fault injection {status_str}")
-    return {"status": "success", "fault_injection_active": config.FAULT_INJECTION_ACTIVE}
-
-@app.post("/api/v1/telemetry/edge", status_code=status.HTTP_200_OK)
-def register_edge_telemetry(payload: dict):
-    """Регистрирует телеметрию скорости на конкретном ребре графа."""
-    u = payload.get("u")
-    v = payload.get("v")
-    speed = payload.get("speed")
-    if u and v and speed is not None:
-        feature_store.register_edge_telemetry(u, v, speed)
-        return {"status": "success"}
-    return {"status": "error", "message": "Invalid telemetry payload"}
-
 @app.get("/api/v1/graph/state", status_code=status.HTTP_200_OK)
 def get_graph_state():
     """Возвращает структуру графа и текущие динамические скорости ребер."""
@@ -193,11 +177,4 @@ def get_graph_state():
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error getting graph state: {e}"
         ) from e
-
-@app.post("/api/v1/virtual_hour", status_code=status.HTTP_200_OK)
-def set_virtual_hour(payload: dict):
-    """Устанавливает текущее время симуляции для расчета заторов."""
-    hour = payload.get("hour", 12.0)
-    feature_store.set_sim_virtual_hour(hour)
-    return {"status": "success", "virtual_hour": hour}
 

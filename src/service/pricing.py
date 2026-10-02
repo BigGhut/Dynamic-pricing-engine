@@ -1,12 +1,12 @@
-"""Price one search the same way the HTTP endpoint does."""
+"""Price one search. HTTP routes and the in-process eval both call this."""
 
 import httpx
 
 from src import clock, config
-from src.api.schemas import PriceResponse, SearchRequest
 from src.bre.rules import BusinessRulesEngine
 from src.data.database import get_latest_price, save_price_with_outbox
 from src.pricing import quote_fare
+from src.service.schemas import PriceResponse, SearchRequest
 
 
 def price_search(feature_store, driver_history_store, payload: SearchRequest) -> PriceResponse:
@@ -165,7 +165,7 @@ def price_search(feature_store, driver_history_store, payload: SearchRequest) ->
             fallback_level = 0
 
         except Exception as level1_error:
-            print(f"[API] [WARN] Графовый расчет Уровня 1 не удался ({level1_error}). Откат на Уровень 2.")
+            print(f"[pricing] [WARN] Графовый расчет Уровня 1 не удался ({level1_error}). Откат на Уровень 2.")
             try:
                 adj_nodes = list(feature_store.graph.adj[node_id].keys()) + [node_id]
                 now = clock.now()
@@ -209,7 +209,7 @@ def price_search(feature_store, driver_history_store, payload: SearchRequest) ->
                 fallback_level = 1
 
             except Exception as level2_error:
-                print(f"[API] [WARN] Расчет Уровня 2 не удался ({level2_error}). Откат на Уровень 3.")
+                print(f"[pricing] [WARN] Расчет Уровня 2 не удался ({level2_error}). Откат на Уровень 3.")
                 features = feature_store.get_features(h3_cell)
                 ds_ratio = features["demand_supply_ratio"]
 
@@ -258,7 +258,7 @@ def price_search(feature_store, driver_history_store, payload: SearchRequest) ->
         )
 
     except Exception as error:
-        print(f"[API] [WARN] Fail-Static сработал (Уровень 4): {error}")
+        print(f"[pricing] [WARN] Fail-Static сработал (Уровень 4): {error}")
         explanation = f"Fallback Level 4 (Fail-Static). DB/Redis/ML error: {error}"
         fallback_h3 = h3_cell if h3_cell else "unknown_h3"
         try:
@@ -273,7 +273,7 @@ def price_search(feature_store, driver_history_store, payload: SearchRequest) ->
                 payout_formula=f"{round(base_fare, 1)} (Fail-Static)",
             )
         except Exception as db_err:
-            print(f"[API] [ERROR] Не удалось записать лог сбоя в БД: {db_err}")
+            print(f"[pricing] [ERROR] Не удалось записать лог сбоя в БД: {db_err}")
 
         return respond(
             cell=fallback_h3,

@@ -5,8 +5,8 @@ import os
 import requests
 
 from src import clock
-from src.api.pricing_service import price_search
-from src.api.schemas import SearchRequest
+from src.service.pricing import price_search
+from src.service.schemas import SearchRequest
 
 
 class HttpEngine:
@@ -14,12 +14,18 @@ class HttpEngine:
 
     def __init__(self, api_url: str | None = None):
         self.api_url = (api_url or os.getenv("API_URL", "http://localhost:8000")).rstrip("/")
+        self.post_errors = 0
 
     def _post(self, path: str, payload: dict, timeout: float) -> None:
         try:
-            requests.post(f"{self.api_url}{path}", json=payload, timeout=timeout)
-        except Exception:
-            pass
+            response = requests.post(f"{self.api_url}{path}", json=payload, timeout=timeout)
+            response.raise_for_status()
+        except Exception as error:
+            self.post_errors += 1
+            print(
+                f"[Simulator] [WARN] POST {path} не принят ({error}). "
+                f"Счётчик ошибок: {self.post_errors}"
+            )
 
     def set_hour(self, hour: float) -> None:
         self._post("/api/v1/virtual_hour", {"hour": hour}, timeout=0.5)

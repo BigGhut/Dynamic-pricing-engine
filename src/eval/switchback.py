@@ -14,13 +14,13 @@ from pathlib import Path
 
 import pandas as pd
 
-from run_simulation import SimulationRunner
 from src import clock, config
 from src.data.database import init_db
 from src.data.feature_store import FeatureStore
 from src.features.driver_history import DriverHistoryStore
-from src.pricing import SHORT_TRIP_KM, trip_earnings
 from src.runtime import DirectEngine
+from src.sim.driver_model import SHORT_TRIP_KM, trip_earnings
+from src.sim.runner import SimulationRunner
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -418,7 +418,7 @@ def main() -> None:
     if args.no_cherry_penalty:
         print(
             "Отчёт содержит обе политики. Флаг меняет принятые поездки только в "
-            "`python run_simulation.py --no-cherry-penalty`."
+            "`python scripts/run_simulation.py --no-cherry-penalty`."
         )
     payload = run()
     METRICS_PATH.parent.mkdir(parents=True, exist_ok=True)
