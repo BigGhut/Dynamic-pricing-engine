@@ -1,72 +1,59 @@
-# Интеграция Causal Pricing Engine (CPE) в DPE
+# Интеграция Causal Pricing Engine (CPE)
 
-**CPE** — sidecar uplift / ITE на порту `:8100`.  
-Репозиторий: [BigGhut/Causal-pricing-engine](https://github.com/BigGhut/Causal-pricing-engine)  
-Case study: [CASE_STUDY.md](https://github.com/BigGhut/Causal-pricing-engine/blob/master/CASE_STUDY.md)  
-Captured evidence: [docs/evidence/latest_proof.md](https://github.com/BigGhut/Causal-pricing-engine/blob/master/docs/evidence/latest_proof.md)
+CPE оценивает **один** эффект: как **аддитивная надбавка** меняет вероятность того, что **водитель примет** заказ, по сравнению с **базовым тарифом**.
 
-DPE вызывает `POST {CAUSAL_ENGINE_URL}/predict_uplift` при расчёте цены. При ошибке или таймауте ценовой путь **не падает** (fail-open).
+Это не скидка и не контраст switchback «аддитивная формула против мультипликативной». Рука switchback назначается чётностью виртуального часа, а не водителю. На этих логах индивидуальный эффект не идентифицируется, и CPE на них не обучается.
 
----
+Репозиторий: [BigGhut/Causal-pricing-engine](https://github.com/BigGhut/Causal-pricing-engine)
 
-## Переменные окружения
+Вызов `POST {CAUSAL_ENGINE_URL}/predict_uplift` не роняет котировку: таймаут и ошибка — fail-open.
 
-| Переменная | Описание | По умолчанию |
-|:---|:---|:---|
-| `CAUSAL_ENABLED` | Включение causal-override | `true` |
-| `CAUSAL_ENGINE_URL` | Базовый URL CPE | `http://localhost:8100` |
-| `CAUSAL_ENGINE_TIMEOUT_SEC` | Таймаут HTTP к CPE (fail-open) | `0.2` (200 ms) |
-| `CAUSAL_UPLIFT_THRESHOLD` | Порог ITE для Sleeping Dog | `0.05` |
+## Когда DPE спрашивает CPE
 
----
+Только если виртуальный час **аддитивный** и в поиске есть `driver_id`. Мультипликативный час — другая цена, модель про неё не обучена. Поиск без водителя некого скорить: в симуляторе водитель выбирается уже после цены, и этот вызов водителя не передаёт.
 
-## DriverHistoryStore (online feature store)
+Тело запроса:
 
-`DriverHistoryStore` ведёт историю поездок в памяти с возможностью начальной загрузки из `simulation_analytics` (SQLite).
-
-### Признаки
-
-- **`past_trips`** — число поездок `driver_id` (или geo-ячейки `h3_cell` для cold-start) **строго до** текущего запроса цены.  
-- **`avg_surge`** — накопленное среднее `surge_bonus` **строго до** текущего запроса.
-
-Так online-признаки совпадают по определению с offline-пайплайном CPE (`load_dpe_data`) — train/serve parity.
-
----
-
-## Sleeping Dog override
-
-Если CPE вернул `uplift_score < -CAUSAL_UPLIFT_THRESHOLD`:
-
-- `surge_bonus` сбрасывается в `0.0`;
-- группа теста: `CAUSAL_NO_SURGE`;
-- в ответе API: `causal_override = true`, плюс пояснение в `explanation`;
-- также отдаются `causal_uplift_score`, `causal_recommended_treatment`.
-
----
-
-## Caveats для обучения CATE (feature entanglement)
-
-При обучении каузальных моделей на логах симуляции DPE:
-
-1. **`surge_bonus` на контроле:** при `test_group = MULTIPLICATIVE` надбавка `surge_bonus` тождественно `0.0` по построению.  
-2. **Post-treatment признаки:** `price` и `surge_bonus` частично зависят от арма (arm-linked). Для более чистого CATE offline используйте набор **`pre_treatment`** (без `price` / `surge_bonus`).  
-3. **Train/serve vs causal purity:** online DPE шлёт полный serve-набор (`serve_parity`). Offline CPE поддерживает `feature_mode="pre_treatment"` для каузального анализа.
-
----
-
-## Быстрая проверка
-
-```bash
-# CPE жив
-curl -s http://localhost:8100/health
-
-# DPE search/price (поля causal_* в JSON-ответе)
-# см. src/api/schemas.py — causal_uplift_score, causal_override, causal_recommended_treatment
+```json
+{
+  "driver_id": "driver_008",
+  "features": {
+    "distance_km": 7.0,
+    "duration_sec": 900.0,
+    "hour_of_day": 11.0,
+    "past_trips": 4.0,
+    "avg_surge": 12.0
+  }
+}
 ```
 
-На стороне CPE end-to-end proof против live DPE:
+`hour_of_day` здесь — виртуальный час, тот же, по которому выбрана рука. `price` и `surge_bonus` не отправляются: они уже зависят от руки.
 
-```bash
-cd ../causal-pricing-engine
-python scripts/portfolio_proof.py --with-dpe
-```
+`past_trips` и `avg_surge` считаются по поездкам этого водителя строго до текущего запроса (`DriverHistoryStore`).
+
+## Что делает отрицательный score
+
+`uplift_score` — изменение вероятности принятия от надбавки. Если он ниже `-CAUSAL_UPLIFT_THRESHOLD` (по умолчанию `0.05`):
+
+- цена становится базовым тарифом, `surge_bonus = 0`;
+- `test_group = CAUSAL_NO_SURGE`;
+- в ответе `causal_override = true`, плюс `causal_uplift_score` и `causal_recommended_treatment`.
+
+Метки CPE: `SURCHARGE`, `KEEP_QUOTE`, `NO_SURCHARGE`. Действие DPE завязано на числовой порог, не на строку скидки.
+
+## Лог `simulation_analytics`
+
+Колонки текущей схемы: `timestamp`, `test_group`, `trip_id`, `distance_km`, `duration_sec`, `price`, `surge_bonus`, `accepted`, `driver_utility`, `driver_id`. Новые прогоны пишут ещё `virtual_hour`.
+
+`accepted` — водитель взял заказ. `driver_id` — этот водитель. `driver_utility` — заложенная вероятность принятия, не выручка. `timestamp` — часы процесса, не виртуальный час. Старые файлы без `virtual_hour` не получают час из `timestamp`.
+
+## Переменные
+
+| Переменная | По умолчанию |
+|:---|:---|
+| `CAUSAL_ENABLED` | `true` |
+| `CAUSAL_ENGINE_URL` | `http://localhost:8100` |
+| `CAUSAL_ENGINE_TIMEOUT_SEC` | `0.2` |
+| `CAUSAL_UPLIFT_THRESHOLD` | `0.05` |
+
+Seeded switchback (`python -m src.eval.switchback`) держит `CAUSAL_ENABLED=false`. Его цифры — про две формулы surge, не про этот override.

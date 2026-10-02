@@ -77,9 +77,14 @@ def init_db():
                 surge_bonus REAL NOT NULL,
                 accepted INTEGER NOT NULL, -- 1 или 0
                 driver_utility REAL NOT NULL,
-                driver_id TEXT NOT NULL
+                driver_id TEXT NOT NULL,
+                virtual_hour REAL
             )
         """)
+        try:
+            cursor.execute("ALTER TABLE simulation_analytics ADD COLUMN virtual_hour REAL")
+        except sqlite3.OperationalError:
+            pass
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_sim_group ON simulation_analytics(test_group)")
         
         conn.commit()

@@ -9,6 +9,32 @@ from src.pricing import quote_fare
 from src.service.schemas import PriceResponse, SearchRequest
 
 
+def build_causal_payload(
+    driver_id: str,
+    distance_km: float,
+    duration_sec: float,
+    hour: float,
+    past_trips: float,
+    avg_surge: float,
+) -> dict:
+    """Features known before the surcharge. Price and surge_bonus are not sent.
+
+    ``hour`` is the virtual hour DPE used to pick the arm. The score CPE returns
+    is the effect of an additive surcharge versus the base fare on whether this
+    driver accepts. It is not a discount, and it is not the multiplicative arm.
+    """
+    return {
+        "driver_id": driver_id,
+        "features": {
+            "distance_km": float(distance_km),
+            "duration_sec": float(duration_sec),
+            "hour_of_day": float(hour),
+            "past_trips": float(past_trips),
+            "avg_surge": float(avg_surge),
+        },
+    }
+
+
 def price_search(feature_store, driver_history_store, payload: SearchRequest) -> PriceResponse:
     """Graph fare, switchback surge, business rules, optional causal override.
 
@@ -105,7 +131,10 @@ def price_search(feature_store, driver_history_store, payload: SearchRequest) ->
 
             proposed_price, surge_bonus, payout_formula = compute_surge_price(smoothed_ds_ratio)
 
-            if config.CAUSAL_ENABLED:
+            # CPE knows one contrast: additive surcharge versus the base fare.
+            # The multiplicative hour is a different quote, and a search without
+            # a driver has no driver-level history to score.
+            if config.CAUSAL_ENABLED and test_group == "ADDITIVE" and payload.driver_id:
                 try:
                     causal_url = config.CAUSAL_ENGINE_URL
                     timeout_sec = config.CAUSAL_ENGINE_TIMEOUT_SEC
@@ -119,18 +148,14 @@ def price_search(feature_store, driver_history_store, payload: SearchRequest) ->
 
                     resp = httpx.post(
                         f"{causal_url}/predict_uplift",
-                        json={
-                            "user_id": payload.driver_id or payload.search_id,
-                            "features": {
-                                "distance_km": float(trip_dist_km),
-                                "duration_sec": float(trip_duration_sec),
-                                "price": float(proposed_price),
-                                "surge_bonus": float(surge_bonus),
-                                "hour_of_day": float(hour),
-                                "past_trips": float(p_trips),
-                                "avg_surge": float(a_surge),
-                            },
-                        },
+                        json=build_causal_payload(
+                            payload.driver_id,
+                            trip_dist_km,
+                            trip_duration_sec,
+                            hour,
+                            p_trips,
+                            a_surge,
+                        ),
                         timeout=timeout_sec,
                     )
                     if resp.status_code == 200:
@@ -142,7 +167,7 @@ def price_search(feature_store, driver_history_store, payload: SearchRequest) ->
                             surge_bonus = 0.0
                             proposed_price = base_fare
                             test_group = "CAUSAL_NO_SURGE"
-                            payout_formula = f"{round(base_fare, 1)} + 0.0 (Causal Override)"
+                            payout_formula = f"{round(base_fare, 1)} + 0.0 (no surcharge)"
                 except Exception:
                     pass
 

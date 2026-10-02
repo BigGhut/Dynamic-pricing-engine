@@ -24,18 +24,26 @@ def save_simulation_analytic(
     accepted: int,
     driver_utility: float,
     driver_id: str,
+    virtual_hour: float | None = None,
 ):
-    """Сохраняет результаты симуляции принятия заказов в SQLite для A/B аналитики."""
+    """Сохраняет результаты симуляции принятия заказов в SQLite для A/B аналитики.
+
+    ``virtual_hour`` — часы симулятора, по чётности которых выбрана рука.
+    ``timestamp`` остаётся часами процесса и эту чётность не хранит.
+    """
     try:
         conn = sqlite3.connect(config.DB_PATH, timeout=5)
         cursor = conn.cursor()
+        columns = {row[1] for row in cursor.execute("PRAGMA table_info(simulation_analytics)")}
+        if "virtual_hour" not in columns:
+            cursor.execute("ALTER TABLE simulation_analytics ADD COLUMN virtual_hour REAL")
         cursor.execute(
             """
             INSERT INTO simulation_analytics (
                 timestamp, test_group, trip_id, distance_km, duration_sec,
-                price, surge_bonus, accepted, driver_utility, driver_id
+                price, surge_bonus, accepted, driver_utility, driver_id, virtual_hour
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 clock.now(),
@@ -48,6 +56,7 @@ def save_simulation_analytic(
                 accepted,
                 driver_utility,
                 driver_id,
+                virtual_hour,
             ),
         )
         conn.commit()
@@ -326,6 +335,7 @@ class SimulationRunner:
                 accepted=accepted,
                 driver_utility=probability,
                 driver_id=driver_id,
+                virtual_hour=self.virtual_hour,
             )
             if self.verbose and random.random() < 0.15:
                 status = "Принят" if accepted else "Отклонен"
