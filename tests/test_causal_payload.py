@@ -37,6 +37,8 @@ def test_only_an_additive_hour_with_a_driver_calls_cpe(monkeypatch: pytest.Monke
             body = {"uplift_score": -0.2, "recommended_treatment": "NO_SURCHARGE"}
             if state["supports"] is not None:
                 body["ranking_supports_decision"] = state["supports"]
+            if state["supports"] is True:
+                body["score_threshold"] = 0.05
             return body
 
     def fake_post(url, json, timeout):

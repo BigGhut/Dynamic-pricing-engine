@@ -138,7 +138,6 @@ def price_search(feature_store, driver_history_store, payload: SearchRequest) ->
                 try:
                     causal_url = config.CAUSAL_ENGINE_URL
                     timeout_sec = config.CAUSAL_ENGINE_TIMEOUT_SEC
-                    threshold = config.CAUSAL_UPLIFT_THRESHOLD
 
                     p_trips, a_surge = 0.0, 0.0
                     if driver_history_store is not None:
@@ -166,10 +165,14 @@ def price_search(feature_store, driver_history_store, payload: SearchRequest) ->
                         # says the holdout Qini interval is entirely above zero.
                         # Missing or false means the cut would follow noise.
                         supports_decision = cdata.get("ranking_supports_decision") is True
+                        chosen = cdata.get("score_threshold")
+                        # Version 2: the cutoff is the calibration-chosen theta.
+                        # A missing theta does not fall back to 0.05.
                         if (
-                            causal_uplift_score is not None
-                            and float(causal_uplift_score) < -threshold
-                            and supports_decision
+                            supports_decision
+                            and chosen is not None
+                            and causal_uplift_score is not None
+                            and float(causal_uplift_score) < -float(chosen)
                         ):
                             causal_override = True
                             surge_bonus = 0.0
@@ -189,11 +192,11 @@ def price_search(feature_store, driver_history_store, payload: SearchRequest) ->
             )
             explanation = f"Graph-based pricing. {bre_explanation}"
             if causal_override:
-                threshold_val = config.CAUSAL_UPLIFT_THRESHOLD
                 score_str = f"{causal_uplift_score:.4f}" if causal_uplift_score is not None else "N/A"
+                chosen_str = f"{float(chosen):.2f}" if chosen is not None else "n/a"
                 explanation = (
-                    f"{explanation} Causal override (Sleeping Dog): "
-                    f"uplift={score_str} < -{threshold_val}."
+                    f"{explanation} Causal override: "
+                    f"uplift={score_str} < -{chosen_str}."
                 )
             fallback_level = 0
 
